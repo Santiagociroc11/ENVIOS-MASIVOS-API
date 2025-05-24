@@ -1,0 +1,36 @@
+# Configuración del Servidor WhatsApp Template Messenger
+# Renombra este archivo a .env y configura las variables
+
+# Server Configuration
+PORT=5001
+NODE_ENV=development
+
+# Meta (Facebook) WhatsApp Business API Configuration
+# 1. Ve a https://developers.facebook.com/
+# 2. Selecciona tu aplicación
+# 3. Ve a System Users o Tokens de acceso
+# 4. Genera un nuevo token con los permisos:
+#    - whatsapp_business_messaging
+#    - whatsapp_business_management
+META_ACCESS_TOKEN=your_permanent_access_token_here
+
+# CRÍTICO: Phone Number ID
+# 1. Ve a https://developers.facebook.com/
+# 2. Selecciona tu app > WhatsApp > Getting Started
+# 3. Encuentra "Phone number ID" (NO el Business Account ID)
+# 4. El Phone Number ID es un número diferente al Business Account ID
+# 5. Debe empezar con "10" o "11" seguido de más dígitos
+FROM_PHONE_NUMBER_ID=your_phone_number_id_here
+
+# Business Account ID (para obtener plantillas)
+# 1. Ve a https://business.facebook.com/settings
+# 2. Selecciona Business Settings > Accounts > WhatsApp Accounts
+# 3. El ID aparece en la URL o en la información de la cuenta
+WHATSAPP_BUSINESS_ACCOUNT_ID=your_business_account_id_here
+
+# IMPORTANTE:
+# 1. El FROM_PHONE_NUMBER_ID es diferente al BUSINESS_ACCOUNT_ID
+# 2. Asegúrate de que el número esté verificado en Meta
+# 3. Las plantillas deben estar aprobadas
+# 4. El token debe tener los permisos correctos
+# 5. Reinicia el servidor después de cambiar estas variables
