@@ -105,6 +105,11 @@ router.get('/medios', async (req, res) => {
 // Get users who requested payment but didn't complete purchase
 router.get('/pending', async (req, res) => {
   try {
+    // Get pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+    
     // Get database keys from query parameter (can be multiple, comma-separated)
     const databasesParam = req.query.databases || 'bot-win-2';
     const dbKeys = databasesParam.split(',').filter(key => key.trim());
@@ -133,11 +138,21 @@ router.get('/pending', async (req, res) => {
         // Get the appropriate model for this database
         const UserModel = await getDatabaseModel(dbConfig);
         
-        // Get ALL users without filtering by estado
-        const users = await UserModel.find({})
+        // Get users with pagination and basic filtering for performance
+        const users = await UserModel.find({
+          whatsapp: { $exists: true, $ne: null, $ne: "" }
+        })
+        .select('whatsapp estado medio medio_at enviado _id') // Only select needed fields
         .lean() // Use lean() for better performance
         .sort({ medio_at: -1 })
-        .exec(); // Use exec() to ensure proper promise handling
+        .skip(skip)
+        .limit(limit)
+        .exec();
+        
+        // Get total count for this database (for pagination info)
+        const totalCount = await UserModel.countDocuments({
+          whatsapp: { $exists: true, $ne: null, $ne: "" }
+        });
         
         // Add database source to each user for tracking
         const usersWithSource = users.map(user => ({
@@ -150,7 +165,7 @@ router.get('/pending', async (req, res) => {
         
         combinedInfo.databases.push(dbConfig.name);
         combinedInfo.collections.push(dbConfig.collection);
-        combinedInfo.totalCount += users.length;
+        combinedInfo.totalCount += totalCount;
         
       } catch (dbError) {
         console.error(`Error fetching from database ${dbKey}:`, dbError);
@@ -163,6 +178,12 @@ router.get('/pending', async (req, res) => {
     
     res.json({
       users: allUsers,
+      pagination: {
+        page,
+        limit,
+        total: combinedInfo.totalCount,
+        hasMore: allUsers.length === limit
+      },
       database: dbKeys.length === 1 ? combinedInfo.databases[0] : `${dbKeys.length} bases combinadas`,
       collection: combinedInfo.collections.join(', '),
       count: allUsers.length,

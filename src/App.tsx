@@ -29,6 +29,10 @@ function App() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isSending, setIsSending] = useState<boolean>(false);
   const [sentCount, setSentCount] = useState<number>(0);
+  const [availableEstados, setAvailableEstados] = useState<string[]>([]);
+  const [availableMedios, setAvailableMedios] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pagination, setPagination] = useState<any>(null);
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [filter, setFilter] = useState({
     status: 'all',
@@ -58,14 +62,21 @@ function App() {
         setTemplates(templatesData);
         
         if (selectedDatabases.length > 0) {
-          const response = await fetchFilteredUsers(selectedDatabases);
+          const response = await fetchFilteredUsers(selectedDatabases, currentPage, quantity);
           setUsers(response.users);
           setFilteredUsers(response.users);
+          setPagination(response.pagination);
           setDatabaseInfo({
             name: response.database,
             collection: response.collection,
             count: response.count
           });
+          
+          // Load available filters
+          const estadosData = await fetchEstados(selectedDatabases);
+          const mediosData = await fetchMedios(selectedDatabases);
+          setAvailableEstados(estadosData);
+          setAvailableMedios(mediosData);
         }
       } catch (error) {
         console.error('Error loading initial data:', error);
@@ -75,7 +86,7 @@ function App() {
     };
 
     loadInitialData();
-  }, [selectedDatabases]);
+  }, [selectedDatabases, currentPage, quantity]);
 
   // Filter users based on search term and filters
   useEffect(() => {
@@ -115,14 +126,21 @@ function App() {
     setLoading(true);
     try {
       if (selectedDatabases.length > 0) {
-        const response = await fetchFilteredUsers(selectedDatabases);
+        const response = await fetchFilteredUsers(selectedDatabases, currentPage, quantity);
         setUsers(response.users);
         setFilteredUsers(response.users);
+        setPagination(response.pagination);
         setDatabaseInfo({
           name: response.database,
           collection: response.collection,
           count: response.count
         });
+        
+        // Refresh available filters
+        const estadosData = await fetchEstados(selectedDatabases);
+        const mediosData = await fetchMedios(selectedDatabases);
+        setAvailableEstados(estadosData);
+        setAvailableMedios(mediosData);
       }
     } catch (error) {
       console.error('Error refreshing users:', error);
@@ -278,6 +296,23 @@ function App() {
 
   const handleSpeedChange = (newSpeed: number) => {
     setSendingSpeed(newSpeed);
+  };
+
+  const handleLoadMore = async () => {
+    if (!pagination?.hasMore) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetchFilteredUsers(selectedDatabases, currentPage + 1, quantity);
+      setUsers(prev => [...prev, ...response.users]);
+      setFilteredUsers(prev => [...prev, ...response.users]);
+      setCurrentPage(prev => prev + 1);
+      setPagination(response.pagination);
+    } catch (error) {
+      console.error('Error loading more users:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -482,6 +517,19 @@ function App() {
             selectedUsers={selectedUsers}
             onToggleSelection={toggleUserSelection}
           />
+          
+          {/* Load More Button */}
+          {pagination?.hasMore && (
+            <div className="mt-6 text-center">
+              <button
+                onClick={handleLoadMore}
+                disabled={loading}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                {loading ? '⏳ Cargando...' : `📄 Cargar Más Usuarios (${pagination.total - users.length} restantes)`}
+              </button>
+            </div>
+          )}
         </div>
       </main>
 
