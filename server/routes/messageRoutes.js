@@ -233,37 +233,43 @@ router.post('/send', async (req, res) => {
           
           if (component.type === 'HEADER' && component.format) {
             if (component.format === 'VIDEO') {
+             // Use the actual video from the template's header_handle
+             const videoUrl = component.example?.header_handle?.[0] || "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4";
               components.push({
                 type: "header",
                 parameters: [
                   {
                     type: "video",
                     video: {
-                      link: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
+                     link: videoUrl
                     }
                   }
                 ]
               });
             } else if (component.format === 'IMAGE') {
+             // Use the actual image from the template's header_handle if available
+             const imageUrl = component.example?.header_handle?.[0] || "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800";
               components.push({
                 type: "header",
                 parameters: [
                   {
                     type: "image",
                     image: {
-                      link: "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800"
+                     link: imageUrl
                     }
                   }
                 ]
               });
             } else if (component.format === 'DOCUMENT') {
+             // Use the actual document from the template's header_handle if available
+             const documentUrl = component.example?.header_handle?.[0] || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
               components.push({
                 type: "header",
                 parameters: [
                   {
                     type: "document",
                     document: {
-                      link: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+                     link: documentUrl,
                       filename: "documento.pdf"
                     }
                   }
@@ -347,20 +353,8 @@ router.post('/send', async (req, res) => {
     } catch (templateError) {
       console.warn('⚠️ Could not fetch template details, using basic structure:', templateError.message);
       
-      // Fallback: Add basic video header for multimedia templates
-      templateMessage.template.components = [
-        {
-          type: "header",
-          parameters: [
-            {
-              type: "video",
-              video: {
-                link: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
-              }
-            }
-          ]
-        }
-      ];
+     // No fallback components - let the template use its default structure
+     console.log('📋 Using template without additional components');
     }
 
     console.log('📤 Final template message:', JSON.stringify(templateMessage, null, 2));
