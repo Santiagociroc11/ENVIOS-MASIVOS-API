@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Filter, RotateCcw } from 'lucide-react';
+import { Plus, X, Filter, RotateCcw, Save, FolderOpen, Trash2, Star } from 'lucide-react';
 
 interface FilterCondition {
   id: string;
@@ -16,6 +16,15 @@ interface AdvancedFiltersProps {
   onFiltersChange: (filters: FilterCondition[]) => void;
 }
 
+interface SavedFilter {
+  id: string;
+  name: string;
+  description: string;
+  filters: FilterCondition[];
+  createdAt: Date;
+  usageCount: number;
+}
+
 const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
   availableEstados,
   availableMedios,
@@ -23,6 +32,14 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
   onFiltersChange
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => {
+    const saved = localStorage.getItem('whatsapp-saved-filters');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showLoadDialog, setShowLoadDialog] = useState(false);
+  const [filterName, setFilterName] = useState('');
+  const [filterDescription, setFilterDescription] = useState('');
 
   const fieldOptions = [
     { value: 'estado', label: 'Estado' },
@@ -79,6 +96,58 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
 
   const clearAllFilters = () => {
     onFiltersChange([]);
+  };
+
+  const saveCurrentFilters = () => {
+    if (filters.length === 0) return;
+    
+    if (!filterName.trim()) {
+      alert('Por favor ingresa un nombre para el filtro');
+      return;
+    }
+    
+    const newSavedFilter: SavedFilter = {
+      id: Date.now().toString(),
+      name: filterName.trim(),
+      description: filterDescription.trim(),
+      filters: [...filters],
+      createdAt: new Date(),
+      usageCount: 0
+    };
+    
+    const updatedSavedFilters = [...savedFilters, newSavedFilter];
+    setSavedFilters(updatedSavedFilters);
+    localStorage.setItem('whatsapp-saved-filters', JSON.stringify(updatedSavedFilters));
+    
+    setFilterName('');
+    setFilterDescription('');
+    setShowSaveDialog(false);
+    
+    alert(`✅ Filtro "${newSavedFilter.name}" guardado exitosamente`);
+  };
+
+  const loadSavedFilter = (savedFilter: SavedFilter) => {
+    // Update usage count
+    const updatedSavedFilters = savedFilters.map(sf => 
+      sf.id === savedFilter.id 
+        ? { ...sf, usageCount: sf.usageCount + 1 }
+        : sf
+    );
+    setSavedFilters(updatedSavedFilters);
+    localStorage.setItem('whatsapp-saved-filters', JSON.stringify(updatedSavedFilters));
+    
+    // Load filters
+    onFiltersChange(savedFilter.filters);
+    setShowLoadDialog(false);
+    setIsExpanded(true);
+  };
+
+  const deleteSavedFilter = (filterId: string) => {
+    if (confirm('¿Estás seguro de que quieres eliminar este filtro guardado?')) {
+      const updatedSavedFilters = savedFilters.filter(sf => sf.id !== filterId);
+      setSavedFilters(updatedSavedFilters);
+      localStorage.setItem('whatsapp-saved-filters', JSON.stringify(updatedSavedFilters));
+    }
   };
 
   const getValueOptions = (field: string) => {
@@ -182,6 +251,26 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
               >
                 <RotateCcw className="w-3 h-3 mr-1" />
                 Limpiar Todo
+              </button>
+            )}
+            
+            {filters.length > 0 && (
+              <button
+                onClick={() => setShowSaveDialog(true)}
+                className="flex items-center px-3 py-1 text-xs font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors"
+              >
+                <Save className="w-3 h-3 mr-1" />
+                Guardar
+              </button>
+            )}
+            
+            {savedFilters.length > 0 && (
+              <button
+                onClick={() => setShowLoadDialog(true)}
+                className="flex items-center px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+              >
+                <FolderOpen className="w-3 h-3 mr-1" />
+                Cargar ({savedFilters.length})
               </button>
             )}
             
@@ -315,6 +404,222 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
           </div>
         )}
       </div>
+
+      {/* Save Filter Dialog */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 text-white rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Save className="w-6 h-6" />
+                  <h2 className="text-xl font-bold">Guardar Filtro</h2>
+                </div>
+                <button
+                  onClick={() => setShowSaveDialog(false)}
+                  className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Nombre del Filtro *
+                </label>
+                <input
+                  type="text"
+                  value={filterName}
+                  onChange={(e) => setFilterName(e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="Ej: Usuarios pendientes con ingreso alto"
+                  maxLength={50}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Descripción (opcional)
+                </label>
+                <textarea
+                  value={filterDescription}
+                  onChange={(e) => setFilterDescription(e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="Describe para qué usas este filtro..."
+                  rows={3}
+                  maxLength={200}
+                />
+              </div>
+              
+              <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                  <strong>Filtros a guardar:</strong>
+                </p>
+                <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                  {filters.map((filter, index) => (
+                    <div key={filter.id}>
+                      {index > 0 && (
+                        <span className={`font-bold ${
+                          filter.logicalOperator === 'OR' 
+                            ? 'text-yellow-600' 
+                            : 'text-blue-600'
+                        }`}>
+                          {filter.logicalOperator || 'Y'}{' '}
+                        </span>
+                      )}
+                      <span>{fieldOptions.find(f => f.value === filter.field)?.label}</span>
+                      {' '}
+                      <span>{operatorOptions[filter.field]?.find(o => o.value === filter.operator)?.label}</span>
+                      {' '}
+                      <span className="font-medium">{filter.value.toString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-900 p-6 border-t border-gray-200 dark:border-gray-700 rounded-b-2xl">
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowSaveDialog(false)}
+                  className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={saveCurrentFilters}
+                  disabled={!filterName.trim()}
+                  className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Guardar Filtro
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Load Filter Dialog */}
+      {showLoadDialog && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <FolderOpen className="w-6 h-6" />
+                  <h2 className="text-xl font-bold">Filtros Guardados</h2>
+                </div>
+                <button
+                  onClick={() => setShowLoadDialog(false)}
+                  className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {savedFilters.length === 0 ? (
+                <div className="text-center py-8">
+                  <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    No hay filtros guardados
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Crea algunos filtros y guárdalos para reutilizarlos fácilmente.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {savedFilters
+                    .sort((a, b) => b.usageCount - a.usageCount)
+                    .map((savedFilter) => (
+                    <div
+                      key={savedFilter.id}
+                      className="bg-gray-50 dark:bg-gray-700 p-4 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-white">
+                              {savedFilter.name}
+                            </h3>
+                            {savedFilter.usageCount > 0 && (
+                              <span className="flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                                <Star className="w-3 h-3 mr-1" />
+                                {savedFilter.usageCount}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {savedFilter.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                              {savedFilter.description}
+                            </p>
+                          )}
+                          
+                          <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                            <p className="font-medium">Filtros ({savedFilter.filters.length}):</p>
+                            {savedFilter.filters.map((filter, index) => (
+                              <div key={filter.id} className="ml-2">
+                                {index > 0 && (
+                                  <span className={`font-bold ${
+                                    filter.logicalOperator === 'OR' 
+                                      ? 'text-yellow-600' 
+                                      : 'text-blue-600'
+                                  }`}>
+                                    {filter.logicalOperator || 'Y'}{' '}
+                                  </span>
+                                )}
+                                <span>{fieldOptions.find(f => f.value === filter.field)?.label}</span>
+                                {' '}
+                                <span>{operatorOptions[filter.field]?.find(o => o.value === filter.operator)?.label}</span>
+                                {' '}
+                                <span className="font-medium">{filter.value.toString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          <p className="text-xs text-gray-400 mt-2">
+                            Creado: {savedFilter.createdAt.toLocaleString()}
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2 ml-4">
+                          <button
+                            onClick={() => loadSavedFilter(savedFilter)}
+                            className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                          >
+                            <FolderOpen className="w-4 h-4 mr-1" />
+                            Cargar
+                          </button>
+                          <button
+                            onClick={() => deleteSavedFilter(savedFilter.id)}
+                            className="flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-900 p-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowLoadDialog(false)}
+                className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
