@@ -1,6 +1,13 @@
 import axios from 'axios';
 import { Template, User } from '../types';
 
+interface MediaConfig {
+  templateName: string;
+  mediaType: 'image' | 'video' | 'document';
+  mediaUrl: string;
+  filename?: string;
+}
+
 const API_BASE_URL = '/api';
 
 export const fetchDatabases = async () => {
@@ -84,18 +91,20 @@ export const fetchMedios = async (databases?: string[]): Promise<string[]> => {
   }
 };
 
-export const sendTemplateMessage = async (phoneNumber: string, templateName: string, databases?: string[]): Promise<{ success: boolean; error?: string }> => {
+export const sendTemplateMessage = async (phoneNumber: string, templateName: string, databases?: string[], mediaConfig?: MediaConfig | null): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🚀 === FRONTEND: ENVIANDO MENSAJE ===');
     console.log('📱 Número:', phoneNumber);
     console.log('📋 Plantilla:', templateName);
     console.log('🗄️ Bases de Datos:', databases);
+    console.log('🎥 Media Config:', mediaConfig);
     console.log('🌐 URL del API:', `${API_BASE_URL}/messages/send`);
     
     const requestBody = {
       phoneNumber,
       templateName,
-      databases
+      databases,
+      mediaConfig
     };
     
     console.log('📦 Request Body que se enviará:');
@@ -105,7 +114,8 @@ export const sendTemplateMessage = async (phoneNumber: string, templateName: str
     const response = await axios.post(`${API_BASE_URL}/messages/send`, {
       phoneNumber,
       templateName,
-      databases
+      databases,
+      mediaConfig
     });
     
     console.log('✅ === FRONTEND: RESPUESTA RECIBIDA ===');
