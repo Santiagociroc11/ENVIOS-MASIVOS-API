@@ -14,6 +14,12 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
   onSelectTemplate,
   loading
 }) => {
+  // Debug log
+  React.useEffect(() => {
+    console.log('🎯 TemplateSelector - Templates received:', templates);
+    console.log('📊 TemplateSelector - Templates count:', templates.length);
+  }, [templates]);
+
   // Log template object when selected
   React.useEffect(() => {
     if (selectedTemplate) {

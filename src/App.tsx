@@ -73,6 +73,7 @@ function App() {
       
       try {
         const templatesData = await fetchConfiguredTemplates();
+        console.log('🔍 Plantillas configuradas obtenidas:', templatesData);
         setTemplates(templatesData);
         
         if (selectedDatabases.length > 0) {

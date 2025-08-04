@@ -25,7 +25,9 @@ export const fetchTemplates = async (): Promise<Template[]> => {
 
 export const fetchConfiguredTemplates = async (): Promise<ConfiguredTemplate[]> => {
   try {
+    console.log('🔗 Fetching configured templates from:', `${API_BASE_URL}/configured-templates/active`);
     const response = await axios.get(`${API_BASE_URL}/configured-templates/active`);
+    console.log('📋 Configured templates response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching configured templates:', error);

@@ -22,10 +22,14 @@ router.get('/', async (req, res) => {
 // Get active configured templates (for sending)
 router.get('/active', async (req, res) => {
   try {
+    console.log('🔍 Fetching active configured templates...');
     const templates = await ConfiguredTemplate.find({ 
       isActive: true,
       status: 'APPROVED'
     }).sort({ displayName: 1 });
+    
+    console.log('📋 Found active templates:', templates.length);
+    console.log('📊 Templates data:', templates);
     
     res.json(templates);
   } catch (error) {
