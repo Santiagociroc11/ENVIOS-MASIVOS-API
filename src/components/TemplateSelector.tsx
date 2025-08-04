@@ -1,5 +1,5 @@
 import React from 'react';
-import { Template, ConfiguredTemplate } from '../types';
+import { ConfiguredTemplate } from '../types';
 
 interface TemplateSelectorProps {
   templates: ConfiguredTemplate[];
@@ -18,11 +18,10 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
   React.useEffect(() => {
     if (selectedTemplate) {
       console.log('🎯 Template Seleccionado:', selectedTemplate);
-      console.log('📋 Nombre:', selectedTemplate.name);
+      console.log('📋 Nombre:', selectedTemplate.displayName);
       console.log('🌍 Idioma:', selectedTemplate.language);
       console.log('⚡ Estado:', selectedTemplate.status);
       console.log('🏷️ Categoría:', selectedTemplate.category);
-      console.log('🔧 Componentes:', selectedTemplate.components);
       console.log('📄 Objeto Completo:', JSON.stringify(selectedTemplate, null, 2));
     }
   }, [selectedTemplate]);
@@ -45,15 +44,15 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
         <div className="relative">
           <select
             className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg py-4 pl-4 pr-10 transition-all duration-200 hover:shadow-xl"
-            value={selectedTemplate?.templateName || ''}
+            value={selectedTemplate?._id || ''}
             onChange={(e) => {
-              const selected = templates.find(t => t.templateName === e.target.value) || null;
+              const selected = templates.find(t => t._id === e.target.value) || null;
               onSelectTemplate(selected);
             }}
           >
             <option value="">✨ Elige una plantilla para comenzar</option>
             {templates.map((template) => (
-              <option key={template._id} value={template.templateName}>
+              <option key={template._id} value={template._id}>
                 📱 {template.displayName} ({template.status})
               </option>
             ))}
