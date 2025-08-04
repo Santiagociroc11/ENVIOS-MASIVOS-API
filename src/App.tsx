@@ -16,7 +16,7 @@ interface SendingResult {
 }
 
 function App() {
-  const [selectedDatabase, setSelectedDatabase] = useState<string>('bot-win-2');
+  const [selectedDatabases, setSelectedDatabases] = useState<string[]>(['bot-win-2']);
   const [databaseInfo, setDatabaseInfo] = useState<any>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -57,8 +57,8 @@ function App() {
         const templatesData = await fetchTemplates();
         setTemplates(templatesData);
         
-        if (selectedDatabase) {
-          const response = await fetchFilteredUsers(selectedDatabase);
+        if (selectedDatabases.length > 0) {
+          const response = await fetchFilteredUsers(selectedDatabases);
           setUsers(response.users);
           setFilteredUsers(response.users);
           setDatabaseInfo({
@@ -75,7 +75,7 @@ function App() {
     };
 
     loadInitialData();
-  }, [selectedDatabase]);
+  }, [selectedDatabases]);
 
   // Filter users based on search term and filters
   useEffect(() => {
@@ -114,8 +114,8 @@ function App() {
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      if (selectedDatabase) {
-        const response = await fetchFilteredUsers(selectedDatabase);
+      if (selectedDatabases.length > 0) {
+        const response = await fetchFilteredUsers(selectedDatabases);
         setUsers(response.users);
         setFilteredUsers(response.users);
         setDatabaseInfo({
@@ -203,7 +203,7 @@ function App() {
       setCurrentSendingIndex(i + 1);
       
       try {
-        const result = await sendTemplateMessage(user.whatsapp, selectedTemplate.name, selectedDatabase);
+        const result = await sendTemplateMessage(user.whatsapp, selectedTemplate.name, selectedDatabases);
         
         const sendingResult: SendingResult = {
           phoneNumber: user.whatsapp,
@@ -219,7 +219,7 @@ function App() {
           localSuccessCount++;
           setSuccessCount(localSuccessCount);
           // Mark as sent in the database
-          await markMessageSent(user.whatsapp, selectedDatabase);
+          await markMessageSent(user.whatsapp, selectedDatabases);
         } else {
           localErrorCount++;
           setErrorCount(localErrorCount);
@@ -318,8 +318,8 @@ function App() {
           </div>
           
           <DatabaseSelector 
-            selectedDatabase={selectedDatabase}
-            onSelectDatabase={setSelectedDatabase}
+            selectedDatabases={selectedDatabases}
+            onSelectDatabases={setSelectedDatabases}
             onDatabaseChange={setDatabaseInfo}
           />
         </div>

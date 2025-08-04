@@ -11,23 +11,13 @@ const router = express.Router();
 // Send template message
 router.post('/send', async (req, res) => {
   try {
-    const { phoneNumber, templateName, database } = req.body;
+    const { phoneNumber, templateName, databases } = req.body;
     
-    // Get database configuration
-    const dbKey = database || 'bot-win-2';
-    const dbConfig = getDatabase(dbKey);
+    // Get database configurations
+    const dbKeys = databases || ['bot-win-2'];
+    const dbKeysArray = Array.isArray(dbKeys) ? dbKeys : [dbKeys];
     
-    if (!dbConfig) {
-      return res.status(404).json({ 
-        success: false,
-        error: 'Database not found' 
-      });
-    }
-    
-    console.log('🔍 Debug - Variables de entorno en messageRoutes:');
-    console.log('META_ACCESS_TOKEN:', process.env.META_ACCESS_TOKEN ? 'Configurado' : 'NO ENCONTRADO');
-    console.log('FROM_PHONE_NUMBER_ID:', process.env.FROM_PHONE_NUMBER_ID ? 'Configurado' : 'NO ENCONTRADO');
-    console.log('📱 Enviando mensaje a:', phoneNumber, 'con plantilla:', templateName, 'desde DB:', dbConfig.name);
+    console.log('📱 Enviando mensaje a:', phoneNumber, 'con plantilla:', templateName, 'desde DBs:', dbKeysArray);
     
     if (!phoneNumber || !templateName) {
       return res.status(400).json({ 
@@ -46,16 +36,41 @@ router.post('/send', async (req, res) => {
       });
     }
     
-    // Get the appropriate model for this database
-    const UserModel = await getDatabaseModel(dbConfig);
+    // Find the user in any of the selected databases
+    let user = null;
+    let sourceDatabase = null;
     
-    // Get the user to make sure they exist
-    const user = await UserModel.findOne({ whatsapp: phoneNumber });
+    for (const dbKey of dbKeysArray) {
+      const dbConfig = getDatabase(dbKey);
+      
+      if (!dbConfig) {
+        console.warn(`Database ${dbKey} not found, skipping...`);
+        continue;
+      }
+      
+      try {
+        // Get the appropriate model for this database
+        const UserModel = await getDatabaseModel(dbConfig);
+        
+        // Try to find the user in this database
+        const foundUser = await UserModel.findOne({ whatsapp: phoneNumber });
+        
+        if (foundUser) {
+          user = foundUser;
+          sourceDatabase = { key: dbKey, config: dbConfig };
+          break; // Found the user, no need to check other databases
+        }
+        
+      } catch (dbError) {
+        console.error(`Error searching user in database ${dbKey}:`, dbError);
+        // Continue searching in other databases
+      }
+    }
     
     if (!user) {
       return res.status(404).json({ 
         success: false,
-        error: 'User not found' 
+        error: 'User not found in any of the selected databases' 
       });
     }
     
@@ -83,14 +98,23 @@ router.post('/send', async (req, res) => {
     );
     
     // Mark the user as messaged
-    await UserModel.updateOne(
-      { whatsapp: phoneNumber },
-      { $set: { enviado: true } }
-    );
+    if (sourceDatabase) {
+      try {
+        const UserModel = await getDatabaseModel(sourceDatabase.config);
+        await UserModel.updateOne(
+          { whatsapp: phoneNumber },
+          { $set: { enviado: true } }
+        );
+      } catch (updateError) {
+        console.error('Error updating user after sending message:', updateError);
+        // Don't fail the request if the update fails, the message was sent successfully
+      }
+    }
     
     res.json({ 
       success: true,
-      messageId: response.data.messages?.[0]?.id
+      messageId: response.data.messages?.[0]?.id,
+      sourceDatabase: sourceDatabase?.key
     });
   } catch (error) {
     console.error('Error sending template message:', error);

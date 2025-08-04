@@ -23,9 +23,9 @@ export const fetchTemplates = async (): Promise<Template[]> => {
   }
 };
 
-export const fetchFilteredUsers = async (database?: string): Promise<{ users: User[]; database: string; collection: string; count: number }> => {
+export const fetchFilteredUsers = async (databases?: string[]): Promise<{ users: User[]; database: string; collection: string; count: number }> => {
   try {
-    const params = database ? `?database=${database}` : '';
+    const params = databases && databases.length > 0 ? `?databases=${databases.join(',')}` : '';
     const response = await axios.get(`${API_BASE_URL}/users/pending${params}`);
     return response.data;
   } catch (error) {
@@ -34,12 +34,12 @@ export const fetchFilteredUsers = async (database?: string): Promise<{ users: Us
   }
 };
 
-export const sendTemplateMessage = async (phoneNumber: string, templateName: string, database?: string): Promise<{ success: boolean; error?: string }> => {
+export const sendTemplateMessage = async (phoneNumber: string, templateName: string, databases?: string[]): Promise<{ success: boolean; error?: string }> => {
   try {
     const response = await axios.post(`${API_BASE_URL}/messages/send`, {
       phoneNumber,
       templateName,
-      database
+      databases
     });
     return { success: response.data.success };
   } catch (error: any) {
@@ -61,11 +61,11 @@ export const sendTemplateMessage = async (phoneNumber: string, templateName: str
   }
 };
 
-export const markMessageSent = async (phoneNumber: string, database?: string): Promise<boolean> => {
+export const markMessageSent = async (phoneNumber: string, databases?: string[]): Promise<boolean> => {
   try {
     const response = await axios.post(`${API_BASE_URL}/users/mark-sent`, {
       phoneNumber,
-      database
+      databases
     });
     return response.data.success;
   } catch (error) {

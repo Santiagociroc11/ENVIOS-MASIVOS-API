@@ -10,14 +10,14 @@ interface DatabaseInfo {
 }
 
 interface DatabaseSelectorProps {
-  selectedDatabase: string;
-  onSelectDatabase: (dbKey: string) => void;
+  selectedDatabases: string[];
+  onSelectDatabases: (dbKeys: string[]) => void;
   onDatabaseChange?: (dbInfo: DatabaseInfo) => void;
 }
 
 const DatabaseSelector: React.FC<DatabaseSelectorProps> = ({
-  selectedDatabase,
-  onSelectDatabase,
+  selectedDatabases,
+  onSelectDatabases,
   onDatabaseChange
 }) => {
   const [databases, setDatabases] = useState<DatabaseInfo[]>([]);
@@ -71,9 +71,46 @@ const DatabaseSelector: React.FC<DatabaseSelectorProps> = ({
     }
   };
 
-  const handleSelectDatabase = (dbKey: string) => {
-    onSelectDatabase(dbKey);
-    const dbInfo = databases.find(db => db.key === dbKey);
+  const handleToggleDatabase = (dbKey: string) => {
+    const newSelection = selectedDatabases.includes(dbKey)
+      ? selectedDatabases.filter(key => key !== dbKey)
+      : [...selectedDatabases, dbKey];
+    
+    onSelectDatabases(newSelection);
+    
+    // Notify about the change with combined info
+    if (onDatabaseChange && newSelection.length > 0) {
+      const selectedDbInfos = databases.filter(db => newSelection.includes(db.key));
+      const combinedInfo = {
+        key: newSelection.join(','),
+        name: newSelection.length === 1 
+          ? selectedDbInfos[0]?.name 
+          : `${newSelection.length} bases de datos seleccionadas`,
+        description: newSelection.length === 1
+          ? selectedDbInfos[0]?.description
+          : `Combinando datos de: ${selectedDbInfos.map(db => db.name).join(', ')}`,
+        collection: selectedDbInfos.map(db => db.collection).join(', '),
+        userCount: 'Calculando...'
+      };
+      onDatabaseChange(combinedInfo);
+    }
+  };
+
+  const handleSelectAll = () => {
+    const allKeys = databases.map(db => db.key);
+    const isAllSelected = allKeys.every(key => selectedDatabases.includes(key));
+    
+    if (isAllSelected) {
+      onSelectDatabases([]);
+    } else {
+      onSelectDatabases(allKeys);
+    }
+  };
+
+  const testAllConnections = async () => {
+    for (const db of databases) {
+      await testConnection(db.key);
+    }
     if (dbInfo && onDatabaseChange) {
       onDatabaseChange(dbInfo);
     }
@@ -92,100 +129,130 @@ const DatabaseSelector: React.FC<DatabaseSelectorProps> = ({
     <div className="space-y-6">
       <div>
         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-          🗄️ Seleccionar Base de Datos
+          🗄️ Seleccionar Bases de Datos (Múltiple)
         </label>
-        <div className="relative">
-          <select
-            className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg py-4 pl-4 pr-10 transition-all duration-200 hover:shadow-xl"
-            value={selectedDatabase}
-            onChange={(e) => handleSelectDatabase(e.target.value)}
+        
+        <div className="flex gap-3 mb-4">
+          <button
+            onClick={handleSelectAll}
+            className="flex items-center px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
           >
-            <option value="">🔍 Selecciona una base de datos</option>
-            {databases.map((db) => (
-              <option key={db.key} value={db.key}>
-                📊 {db.name} ({db.userCount} usuarios)
-              </option>
-            ))}
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-            <Database className="w-5 h-5 text-gray-400" />
-          </div>
-        </div>
-      </div>
-
-      {selectedDatabase && (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 p-6 rounded-2xl border border-blue-200 dark:border-gray-500 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
-                <Database className="w-4 h-4 text-white" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">🗄️ Información de la Base de Datos</h3>
-            </div>
-            <button
-              onClick={() => testConnection(selectedDatabase)}
-              disabled={testing === selectedDatabase}
-              className="flex items-center px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${testing === selectedDatabase ? 'animate-spin' : ''}`} />
-              {testing === selectedDatabase ? 'Probando...' : 'Probar Conexión'}
-            </button>
-          </div>
+            <Database className="w-4 h-4 mr-2" />
+            {databases.every(db => selectedDatabases.includes(db.key)) ? 'Deseleccionar Todas' : 'Seleccionar Todas'}
+          </button>
           
-          {databases.filter(db => db.key === selectedDatabase).map(db => (
-            <div key={db.key} className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">📝 Nombre</span>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{db.name}</p>
+          <button
+            onClick={testAllConnections}
+            disabled={testing !== null}
+            className="flex items-center px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${testing ? 'animate-spin' : ''}`} />
+            Probar Todas
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {databases.map((db) => (
+            <div
+              key={db.key}
+              className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:shadow-lg ${
+                selectedDatabases.includes(db.key)
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                  : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-blue-300'
+              }`}
+              onClick={() => handleToggleDatabase(db.key)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedDatabases.includes(db.key)}
+                    onChange={() => handleToggleDatabase(db.key)}
+                    className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{db.name}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{db.userCount} usuarios</p>
+                  </div>
                 </div>
                 
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">📄 Descripción</span>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{db.description}</p>
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    testConnection(db.key);
+                  }}
+                  disabled={testing === db.key}
+                  className="flex items-center px-3 py-1 text-xs font-medium bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 mr-1 ${testing === db.key ? 'animate-spin' : ''}`} />
+                  Test
+                </button>
               </div>
               
-              <div className="space-y-3">
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">🗂️ Colección</span>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{db.collection}</p>
-                </div>
-                
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">👥 Usuarios</span>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">
-                    {testResults[db.key]?.count !== undefined ? testResults[db.key].count : db.userCount}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {/* Test Results */}
-          {testResults[selectedDatabase] && (
-            <div className="mt-4 p-4 rounded-xl border">
-              {testResults[selectedDatabase].success ? (
-                <div className="flex items-center space-x-2 text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className="font-medium">✅ Conexión exitosa</span>
-                  {testResults[selectedDatabase].count !== undefined && (
-                    <span className="text-sm">({testResults[selectedDatabase].count} usuarios encontrados)</span>
+              {/* Test Results */}
+              {testResults[db.key] && (
+                <div className="mt-3 p-2 rounded-lg border text-xs">
+                  {testResults[db.key].success ? (
+                    <div className="flex items-center space-x-2 text-green-700 dark:text-green-300">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>✅ Conectado ({testResults[db.key].count} usuarios)</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-2 text-red-700 dark:text-red-300">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>❌ Error: {testResults[db.key].error}</span>
+                    </div>
                   )}
-                </div>
-              ) : (
-                <div className="flex items-center space-x-2 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
-                  <AlertCircle className="w-5 h-5" />
-                  <div>
-                    <span className="font-medium">❌ Error de conexión</span>
-                    {testResults[selectedDatabase].error && (
-                      <p className="text-sm mt-1">{testResults[selectedDatabase].error}</p>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
-          )}
+          ))}
+        </div>
+      </div>
+
+      {selectedDatabases.length > 0 && (
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 p-6 rounded-2xl border border-blue-200 dark:border-gray-500 shadow-lg">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
+              <Database className="w-4 h-4 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              🗄️ {selectedDatabases.length === 1 ? 'Base de Datos Seleccionada' : `${selectedDatabases.length} Bases de Datos Seleccionadas`}
+            </h3>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">📝 Bases Seleccionadas</span>
+              <div className="mt-2 space-y-1">
+                {selectedDatabases.map(dbKey => {
+                  const db = databases.find(d => d.key === dbKey);
+                  return (
+                    <div key={dbKey} className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-gray-900 dark:text-white">{db?.name}</span>
+                      <span className="text-gray-500 dark:text-gray-400">{db?.userCount}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">📊 Resumen</span>
+              <div className="mt-2 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-300">Total de BDs:</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{selectedDatabases.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-300">Estado:</span>
+                  <span className="font-semibold text-green-600 dark:text-green-400">
+                    {selectedDatabases.length === 1 ? 'Individual' : 'Combinado'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
