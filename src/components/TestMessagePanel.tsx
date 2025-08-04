@@ -296,6 +296,20 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
           <li>• <strong>Usa formato completo:</strong> 57 + número colombiano (ej: 573136298562)</li>
           <li>• <strong>Verifica que el número</strong> esté registrado en WhatsApp</li>
           <li>• <strong>La prueba usa la misma API</strong> que los envíos masivos</li>
+          <li>• <strong>"Enviado exitosamente"</strong> significa que WhatsApp API aceptó el mensaje</li>
+          <li>• <strong>La entrega real</strong> puede tomar unos segundos o minutos</li>
+        </ul>
+      </div>
+      
+      {/* Delivery Status Info */}
+      <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-200 dark:border-yellow-800">
+        <h4 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">⚠️ Sobre la Entrega de Mensajes:</h4>
+        <ul className="text-sm text-yellow-800 dark:text-yellow-200 space-y-1">
+          <li>• <strong>API acepta mensaje</strong> ≠ <strong>Mensaje entregado</strong></li>
+          <li>• WhatsApp puede <strong>rechazar mensajes</strong> por políticas internas</li>
+          <li>• El número debe estar <strong>activo en WhatsApp</strong></li>
+          <li>• Algunos números pueden tener <strong>restricciones</strong> de mensajes comerciales</li>
+          <li>• La <strong>primera vez</strong> puede tomar más tiempo en llegar</li>
         </ul>
       </div>
     </div>
