@@ -5,8 +5,8 @@ import TemplateSelector from './components/TemplateSelector';
 import UserList from './components/UserList';
 import SendingPanel from './components/SendingPanel';
 import SendingModal from './components/SendingModal';
-import MessageHistory from './components/MessageHistory';
-import { fetchTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios } from './api/services';
+import CampaignHistory from './components/CampaignHistory';
+import { fetchTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign } from './api/services';
 import { Template, User } from './types';
 
 interface SendingResult {
@@ -16,7 +16,7 @@ interface SendingResult {
   timestamp: number;
 }
 
-type TabType = 'send' | 'history' | 'settings';
+type TabType = 'send' | 'campaigns' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('send');
@@ -54,6 +54,7 @@ function App() {
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   const [sendingSpeed, setSendingSpeed] = useState<number>(1000);
   const [shouldCancel, setShouldCancel] = useState<boolean>(false);
+  const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(null);
   
   const sendingControlRef = useRef<{ cancel: boolean; pause: boolean }>({ cancel: false, pause: false });
 
@@ -195,6 +196,21 @@ function App() {
   const handleSendMessages = async () => {
     if (!selectedTemplate || selectedUsers.length === 0) return;
     
+    // Create campaign first
+    const campaignName = `${selectedTemplate.name} - ${new Date().toLocaleDateString()}`;
+    const campaign = await createCampaign(
+      campaignName,
+      selectedTemplate.name,
+      selectedTemplate.language,
+      selectedDatabases
+    );
+    
+    if (!campaign) {
+      console.error('Failed to create campaign');
+      return;
+    }
+    
+    setCurrentCampaignId(campaign.campaignId);
     resetSendingState();
     setIsSending(true);
     setShowSendingModal(true);
@@ -226,6 +242,18 @@ function App() {
       try {
         const result = await sendTemplateMessage(user.whatsapp, selectedTemplate.name, selectedDatabases);
         
+        // Add user to campaign
+        if (currentCampaignId) {
+          await addUserToCampaign(
+            currentCampaignId,
+            user.whatsapp,
+            user._sourceDatabase || selectedDatabases[0],
+            result.success ? 'sent' : 'failed',
+            result.success ? 'message-id' : undefined,
+            result.error
+          );
+        }
+        
         const sendingResult: SendingResult = {
           phoneNumber: user.whatsapp,
           success: result.success,
@@ -254,6 +282,19 @@ function App() {
         };
         
         localResults.push(sendingResult);
+        
+        // Add failed user to campaign
+        if (currentCampaignId) {
+          await addUserToCampaign(
+            currentCampaignId,
+            user.whatsapp,
+            user._sourceDatabase || selectedDatabases[0],
+            'failed',
+            undefined,
+            'Error de conexión'
+          );
+        }
+        
         setSendingResults([...localResults]);
         localErrorCount++;
         setErrorCount(localErrorCount);
@@ -262,6 +303,11 @@ function App() {
       if (i < usersToMessage.length - 1) {
         await new Promise(resolve => setTimeout(resolve, getSpeedDelay(sendingSpeed)));
       }
+    }
+    
+    // Complete campaign
+    if (currentCampaignId) {
+      await completeCampaign(currentCampaignId);
     }
     
     setIsSending(false);
@@ -317,7 +363,7 @@ function App() {
 
   const tabs = [
     { id: 'send', label: 'Enviar Mensajes', icon: Send, color: 'from-blue-500 to-purple-500' },
-    { id: 'history', label: 'Historial de Envíos', icon: History, color: 'from-green-500 to-teal-500' },
+    { id: 'campaigns', label: 'Historial de Campañas', icon: History, color: 'from-green-500 to-teal-500' },
     { id: 'settings', label: 'Configuración', icon: Settings, color: 'from-orange-500 to-red-500' }
   ];
 
@@ -579,8 +625,8 @@ function App() {
           </div>
         )}
 
-        {activeTab === 'history' && (
-          <MessageHistory selectedDatabases={selectedDatabases} />
+        {activeTab === 'campaigns' && (
+          <CampaignHistory selectedDatabases={selectedDatabases} />
         )}
 
         {activeTab === 'settings' && (

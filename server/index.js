@@ -14,6 +14,7 @@ import templateRoutes from './routes/templateRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import databaseRoutes from './routes/databaseRoutes.js';
+import campaignRoutes from './routes/campaignRoutes.js';
 
 dotenv.config();
 
@@ -73,6 +74,7 @@ app.use('/api/databases', databaseRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/campaigns', campaignRoutes);
 
 // Catch-all for undefined API routes
 app.use('/api/*', (req, res) => {

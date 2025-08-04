@@ -123,3 +123,65 @@ export const markMessageSent = async (phoneNumber: string, databases?: string[])
     return false;
   }
 };
+
+// Campaign API functions
+export const fetchCampaigns = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/campaigns`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
+    return [];
+  }
+};
+
+export const fetchCampaignDetails = async (campaignId: string) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/campaigns/${campaignId}/details`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching campaign details:', error);
+    return null;
+  }
+};
+
+export const createCampaign = async (name: string, templateName: string, templateLanguage: string, databases: string[]) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/campaigns`, {
+      name,
+      templateName,
+      templateLanguage,
+      databases
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error creating campaign:', error);
+    return null;
+  }
+};
+
+export const addUserToCampaign = async (campaignId: string, whatsapp: string, database: string, status: string, messageId?: string, error?: string) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/campaigns/${campaignId}/add-user`, {
+      whatsapp,
+      database,
+      status,
+      messageId,
+      error
+    });
+    return response.data.success;
+  } catch (error) {
+    console.error('Error adding user to campaign:', error);
+    return false;
+  }
+};
+
+export const completeCampaign = async (campaignId: string) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/campaigns/${campaignId}/complete`);
+    return response.data.success;
+  } catch (error) {
+    console.error('Error completing campaign:', error);
+    return false;
+  }
+};
