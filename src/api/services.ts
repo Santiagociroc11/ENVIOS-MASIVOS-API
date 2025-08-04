@@ -25,14 +25,14 @@ export const fetchTemplates = async (): Promise<Template[]> => {
 
 export const fetchFilteredUsers = async (databases?: string[], page: number = 1, limit: number = 50): Promise<{ users: User[]; database: string; collection: string; count: number; pagination?: any }> => {
   try {
-    let params = new URLSearchParams();
+    const params = new URLSearchParams();
     if (databases && databases.length > 0) {
       params.append('databases', databases.join(','));
     }
     params.append('page', page.toString());
     params.append('limit', limit.toString());
     
-    const response = await axios.get(`${API_BASE_URL}/users/pending${params}`);
+    const response = await axios.get(`${API_BASE_URL}/users/pending?${params.toString()}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -42,8 +42,11 @@ export const fetchFilteredUsers = async (databases?: string[], page: number = 1,
 
 export const fetchEstados = async (databases?: string[]): Promise<string[]> => {
   try {
-    const params = databases && databases.length > 0 ? `?databases=${databases.join(',')}` : '';
-    const response = await axios.get(`${API_BASE_URL}/users/estados${params}`);
+    const params = new URLSearchParams();
+    if (databases && databases.length > 0) {
+      params.append('databases', databases.join(','));
+    }
+    const response = await axios.get(`${API_BASE_URL}/users/estados?${params.toString()}`);
     return response.data.estados || [];
   } catch (error) {
     console.error('Error fetching estados:', error);
@@ -53,8 +56,11 @@ export const fetchEstados = async (databases?: string[]): Promise<string[]> => {
 
 export const fetchMedios = async (databases?: string[]): Promise<string[]> => {
   try {
-    const params = databases && databases.length > 0 ? `?databases=${databases.join(',')}` : '';
-    const response = await axios.get(`${API_BASE_URL}/users/medios${params}`);
+    const params = new URLSearchParams();
+    if (databases && databases.length > 0) {
+      params.append('databases', databases.join(','));
+    }
+    const response = await axios.get(`${API_BASE_URL}/users/medios?${params.toString()}`);
     return response.data.medios || [];
   } catch (error) {
     console.error('Error fetching medios:', error);
