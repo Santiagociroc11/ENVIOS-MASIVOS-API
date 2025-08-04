@@ -188,6 +188,17 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
               }`}>
                 {testResult.message}
               </p>
+              {!testResult.success && (
+                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">💡 Posibles Soluciones:</h4>
+                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                    <li>• Verifica que la plantilla esté <strong>APPROVED</strong> en Meta Business Manager</li>
+                    <li>• Confirma que el nombre de la plantilla sea exacto</li>
+                    <li>• Asegúrate de que tu número de WhatsApp Business esté verificado</li>
+                    <li>• Revisa que el token tenga permisos de <strong>whatsapp_business_messaging</strong></li>
+                  </ul>
+                </div>
+              )}
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 🕒 {testResult.timestamp.toLocaleTimeString()}
               </p>
