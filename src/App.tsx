@@ -9,6 +9,7 @@ import CampaignHistory from './components/CampaignHistory';
 import AdvancedFilters from './components/AdvancedFilters';
 import TestMessagePanel from './components/TestMessagePanel';
 import TemplateManagement from './components/TemplateManagement';
+import StepByStepSending from './components/StepByStepSending';
 import { fetchTemplates, fetchConfiguredTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign } from './api/services';
 import { Template, ConfiguredTemplate, User } from './types';
 
@@ -517,148 +518,34 @@ function App() {
       {/* Tab Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'send' && (
-          <div className="space-y-8">
-            {/* Database Selection */}
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
-                  <Database className="w-4 h-4 text-white" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Base de Datos</h2>
-              </div>
-              
-              <DatabaseSelector 
-                selectedDatabases={selectedDatabases}
-                onSelectDatabases={setSelectedDatabases}
-                onDatabaseChange={setDatabaseInfo}
-              />
-            </div>
-
-            {/* Template Selection */}
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                  <MessageSquare className="w-4 h-4 text-white" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Plantilla de Mensaje</h2>
-              </div>
-              
-              <TemplateSelector 
-                templates={templates}
-                selectedTemplate={selectedTemplate}
-                onSelectTemplate={setSelectedTemplate}
-                loading={loading}
-              />
-            </div>
-
-            {/* Test Message Panel */}
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
-                  <Send className="w-4 h-4 text-white" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Envío de Prueba</h2>
-              </div>
-              
-              <TestMessagePanel 
-                selectedTemplate={selectedTemplate}
-                selectedDatabases={selectedDatabases}
-              />
-            </div>
-
-            {/* Users Management */}
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
-              <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                    <Users className="w-4 h-4 text-white" />
-                  </div>
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Usuarios ({filteredUsers.length})
-                  </h2>
-                </div>
-                <button
-                  onClick={handleRefresh}
-                  className="flex items-center px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  disabled={loading}
-                >
-                  <RefreshCw size={16} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
-                  Actualizar
-                </button>
-              </div>
-
-              {/* Search and Filters */}
-              <div className="flex flex-col space-y-4 mb-6">
-                <div className="relative flex-1">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Search size={20} className="text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    className="pl-12 block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white py-4 text-lg placeholder-gray-400 transition-all duration-200 hover:shadow-xl"
-                    placeholder="Buscar por número de WhatsApp..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Advanced Filters */}
-              <div className="mb-6">
-                <AdvancedFilters
-                  availableEstados={availableEstados}
-                  availableMedios={availableMedios}
-                  filters={advancedFilters}
-                  onFiltersChange={setAdvancedFilters}
-                />
-              </div>
-
-              <SendingPanel 
-                quantity={quantity} 
-                setQuantity={setQuantity}
-                selectedTemplate={selectedTemplate}
-                selectedCount={selectedUsers.length}
-                onSendMessages={handleSendMessages}
-                onSelectAll={handleSelectAll}
-                isSending={isSending}
-              />
-
-              <UserList 
-                users={filteredUsers.slice(0, quantity)}
-                selectedUsers={selectedUsers}
-                onToggleSelection={toggleUserSelection}
-              />
-              
-              {pagination?.hasMore && !loadingAll && quantity !== -1 && (
-                <div className="mt-6 text-center">
-                  <button
-                    onClick={handleLoadMore}
-                    disabled={loading}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-                  >
-                    {loading ? 'Cargando...' : `Cargar Más Usuarios (${pagination.total - users.length} restantes)`}
-                  </button>
-                </div>
-              )}
-              
-              {loadingAll && (
-                <div className="mt-6 text-center">
-                  <div className="inline-flex items-center px-6 py-3 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
-                    <span className="font-medium">Cargando TODOS los usuarios...</span>
-                  </div>
-                </div>
-              )}
-              
-              {pagination?.loadedAll && (
-                <div className="mt-6 text-center">
-                  <div className="inline-flex items-center px-6 py-3 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-lg">
-                    <span className="font-medium">✅ Se cargaron TODOS los usuarios ({users.length} total)</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <StepByStepSending
+            selectedDatabases={selectedDatabases}
+            onSelectDatabases={setSelectedDatabases}
+            onDatabaseChange={setDatabaseInfo}
+            templates={templates}
+            selectedTemplate={selectedTemplate}
+            onSelectTemplate={setSelectedTemplate}
+            loading={loading}
+            filteredUsers={filteredUsers}
+            selectedUsers={selectedUsers}
+            onToggleSelection={toggleUserSelection}
+            onSelectAll={handleSelectAll}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            availableEstados={availableEstados}
+            availableMedios={availableMedios}
+            advancedFilters={advancedFilters}
+            onFiltersChange={setAdvancedFilters}
+            quantity={quantity}
+            setQuantity={setQuantity}
+            onSendMessages={handleSendMessages}
+            isSending={isSending}
+            onRefresh={handleRefresh}
+            pagination={pagination}
+            loadingAll={loadingAll}
+            users={users}
+            onLoadMore={handleLoadMore}
+          />
         )}
 
         {activeTab === 'templates' && (
