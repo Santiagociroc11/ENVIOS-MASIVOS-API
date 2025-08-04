@@ -1,37 +1,19 @@
 import React from 'react';
-import { useState } from 'react';
-import { Settings } from 'lucide-react';
 import { Template } from '../types';
-import MediaConfigModal from './MediaConfigModal';
-
-interface MediaConfig {
-  templateName: string;
-  mediaType: 'image' | 'video' | 'document';
-  mediaUrl: string;
-  filename?: string;
-}
 
 interface TemplateSelectorProps {
   templates: Template[];
   selectedTemplate: Template | null;
   onSelectTemplate: (template: Template | null) => void;
   loading: boolean;
-  onMediaConfigChange?: (config: MediaConfig | null) => void;
 }
 
 const TemplateSelector: React.FC<TemplateSelectorProps> = ({ 
   templates, 
   selectedTemplate, 
   onSelectTemplate,
-  loading,
-  onMediaConfigChange
+  loading
 }) => {
-  const [showMediaConfig, setShowMediaConfig] = useState<boolean>(false);
-  const [mediaConfigs, setMediaConfigs] = useState<{ [templateName: string]: MediaConfig }>(() => {
-    const saved = localStorage.getItem('whatsapp-media-configs');
-    return saved ? JSON.parse(saved) : {};
-  });
-
   // Log template object when selected
   React.useEffect(() => {
     if (selectedTemplate) {
@@ -44,35 +26,6 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
       console.log('📄 Objeto Completo:', JSON.stringify(selectedTemplate, null, 2));
     }
   }, [selectedTemplate]);
-
-  const hasMultimediaHeader = (template: Template) => {
-    return template.components?.some(comp => 
-      comp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)
-    );
-  };
-
-  const getMediaType = (template: Template): 'image' | 'video' | 'document' | null => {
-    const headerComp = template.components?.find(comp => comp.type === 'HEADER');
-    if (headerComp?.format) {
-      return headerComp.format.toLowerCase() as 'image' | 'video' | 'document';
-    }
-    return null;
-  };
-
-  const handleMediaConfigSave = (config: MediaConfig) => {
-    const newConfigs = { ...mediaConfigs, [config.templateName]: config };
-    setMediaConfigs(newConfigs);
-    localStorage.setItem('whatsapp-media-configs', JSON.stringify(newConfigs));
-    
-    // Notify parent component
-    if (onMediaConfigChange) {
-      onMediaConfigChange(config);
-    }
-  };
-
-  const getCurrentMediaConfig = () => {
-    return selectedTemplate ? mediaConfigs[selectedTemplate.name] : null;
-  };
 
   if (loading) {
     return (
@@ -122,20 +75,6 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">📱 Vista Previa de Plantilla</h3>
-            
-            {hasMultimediaHeader(selectedTemplate) && (
-              <button
-                onClick={() => setShowMediaConfig(true)}
-                className={`flex items-center px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
-                  getCurrentMediaConfig()
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200'
-                    : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200'
-                }`}
-              >
-                <Settings className="w-3 h-3 mr-1" />
-                {getCurrentMediaConfig() ? 'Configurado' : 'Configurar Media'}
-              </button>
-            )}
           </div>
           
           <div className="grid md:grid-cols-2 gap-6">
@@ -243,7 +182,9 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
           </div>
           
           {/* Multimedia Template Info */}
-          {hasMultimediaHeader(selectedTemplate) && (
+          {selectedTemplate.components?.some(comp => 
+            comp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)
+          ) && (
             <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
               <div className="flex items-center space-x-2 mb-2">
                 <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
@@ -251,32 +192,14 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
                 </div>
                 <h4 className="font-semibold text-purple-900 dark:text-purple-100">Plantilla Multimedia</h4>
               </div>
-              
-              {getCurrentMediaConfig() ? (
-                <div>
-                  <p className="text-sm text-purple-800 dark:text-purple-200 mb-2">
-                    ✅ Multimedia configurado correctamente
-                  </p>
-                  <div className="text-xs text-purple-700 dark:text-purple-300 space-y-1">
-                    <p>• 🎯 <strong>Tipo:</strong> {getMediaType(selectedTemplate)?.toUpperCase()}</p>
-                    <p>• 🔗 <strong>URL:</strong> {getCurrentMediaConfig()?.mediaUrl}</p>
-                    {getCurrentMediaConfig()?.filename && (
-                      <p>• 📄 <strong>Archivo:</strong> {getCurrentMediaConfig()?.filename}</p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm text-purple-800 dark:text-purple-200 mb-2">
-                    ⚠️ Esta plantilla requiere configuración de multimedia
-                  </p>
-                  <div className="text-xs text-purple-700 dark:text-purple-300 space-y-1">
-                    <p>• 🔧 <strong>Requerido:</strong> URL de {getMediaType(selectedTemplate)} hosteado</p>
-                    <p>• 🌐 <strong>Acceso:</strong> Debe ser público y accesible vía HTTP/HTTPS</p>
-                    <p>• ⚙️ <strong>Acción:</strong> Haz clic en "Configurar Media" para continuar</p>
-                  </div>
-                </div>
-              )}
+              <p className="text-sm text-purple-800 dark:text-purple-200 mb-2">
+                Esta plantilla incluye contenido multimedia. Se usará una imagen por defecto de Pexels para los envíos.
+              </p>
+              <div className="text-xs text-purple-700 dark:text-purple-300 space-y-1">
+                <p>• 📷 <strong>Imagen:</strong> Se enviará una imagen profesional por defecto</p>
+                <p>• ⚡ <strong>Automático:</strong> No necesitas configurar nada adicional</p>
+                <p>• 🎯 <strong>Consistente:</strong> Misma imagen para todos los envíos</p>
+              </div>
             </div>
           )}
           
@@ -299,15 +222,6 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
           )}
         </div>
       )}
-      
-      {/* Media Configuration Modal */}
-      <MediaConfigModal
-        isOpen={showMediaConfig}
-        onClose={() => setShowMediaConfig(false)}
-        template={selectedTemplate}
-        onSave={handleMediaConfigSave}
-        existingConfig={getCurrentMediaConfig()}
-      />
     </div>
   );
 };

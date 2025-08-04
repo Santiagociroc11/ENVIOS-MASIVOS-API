@@ -11,13 +11,6 @@ import TestMessagePanel from './components/TestMessagePanel';
 import { fetchTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign } from './api/services';
 import { Template, User } from './types';
 
-interface MediaConfig {
-  templateName: string;
-  mediaType: 'image' | 'video' | 'document';
-  mediaUrl: string;
-  filename?: string;
-}
-
 interface SendingResult {
   phoneNumber: string;
   success: boolean;
@@ -55,7 +48,6 @@ function App() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pagination, setPagination] = useState<any>(null);
   const [advancedFilters, setAdvancedFilters] = useState<FilterCondition[]>([]);
-  const [currentMediaConfig, setCurrentMediaConfig] = useState<MediaConfig | null>(null);
 
   // Modal states
   const [showSendingModal, setShowSendingModal] = useState<boolean>(false);
@@ -553,7 +545,6 @@ function App() {
                 selectedTemplate={selectedTemplate}
                 onSelectTemplate={setSelectedTemplate}
                 loading={loading}
-                onMediaConfigChange={setCurrentMediaConfig}
               />
             </div>
 
@@ -569,7 +560,6 @@ function App() {
               <TestMessagePanel 
                 selectedTemplate={selectedTemplate}
                 selectedDatabases={selectedDatabases}
-                mediaConfig={currentMediaConfig}
               />
             </div>
 

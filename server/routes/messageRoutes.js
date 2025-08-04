@@ -119,14 +119,13 @@ router.get('/status/:messageId', async (req, res) => {
 // Send template message
 router.post('/send', async (req, res) => {
   try {
-    const { phoneNumber, templateName, databases, mediaConfig } = req.body;
+    const { phoneNumber, templateName, databases } = req.body;
     
     // Get database configurations
     const dbKeys = databases || ['bot-win-2'];
     const dbKeysArray = Array.isArray(dbKeys) ? dbKeys : [dbKeys];
     
     console.log('📱 Enviando mensaje a:', phoneNumber, 'con plantilla:', templateName, 'desde DBs:', dbKeysArray);
-    console.log('🎥 Media Config recibido:', mediaConfig);
     
     if (!phoneNumber || !templateName) {
       console.log('❌ VALIDATION ERROR: Missing required fields');
@@ -204,7 +203,7 @@ router.post('/send', async (req, res) => {
       template: {
         name: templateName,
         language: {
-          code: "Es"
+          code: "es"
         }
       }
     };
@@ -282,13 +281,8 @@ router.post('/send', async (req, res) => {
                 type: "text",
                 text: text
               }));
-                // Use media config URL if provided, otherwise use template's header_handle, otherwise fallback
-                const videoUrl = (mediaConfig && mediaConfig.mediaType === 'video') 
-                  ? mediaConfig.mediaUrl 
-                  : component.example?.header_handle?.[0] || "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4";
-                
-                console.log('🎥 Using video URL:', videoUrl);
-                
+              
+              if (headerParams.length > 0) {
                 components.push({
                   type: "header",
                   parameters: headerParams
@@ -301,18 +295,8 @@ router.post('/send', async (req, res) => {
                   {
                     type: "location",
                     location: {
-                // Use media config URL if provided, otherwise use template's header_handle, otherwise fallback
-                const documentUrl = (mediaConfig && mediaConfig.mediaType === 'document') 
-                  ? mediaConfig.mediaUrl 
-                  : component.example?.header_handle?.[0] || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
-                
-                const filename = (mediaConfig && mediaConfig.mediaType === 'document' && mediaConfig.filename) 
-                  ? mediaConfig.filename 
-                  : "documento.pdf";
-                
-                console.log('📄 Using document URL:', documentUrl);
-                console.log('📄 Using filename:', filename);
-                
+                      latitude: "4.7110",
+                      longitude: "-74.0721",
                       name: "Bogotá, Colombia",
                       address: "Bogotá, Colombia"
                     }
@@ -320,7 +304,7 @@ router.post('/send', async (req, res) => {
                 ]
               });
             }
-                        filename: filename
+          } else if (component.type === 'BODY') {
             // Handle body parameters if they exist
             if (component.example?.body_text && component.example.body_text[0]) {
               const bodyParams = component.example.body_text[0].map(text => ({
@@ -355,13 +339,8 @@ router.post('/send', async (req, res) => {
               }
               // QUICK_REPLY and PHONE_NUMBER buttons don't need parameters - they go as defined in template
             });
-                // Use media config URL if provided, otherwise use template's header_handle, otherwise fallback
-                const imageUrl = (mediaConfig && mediaConfig.mediaType === 'image') 
-                  ? mediaConfig.mediaUrl 
-                  : component.example?.header_handle?.[0] || "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800";
-                
-                console.log('📷 Using image URL:', imageUrl);
-                
+          }
+        }
         
         console.log('✅ Built components:', JSON.stringify(components, null, 2));
         

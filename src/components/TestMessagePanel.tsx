@@ -3,17 +3,9 @@ import { Send, Phone, CheckCircle2, AlertCircle, Loader } from 'lucide-react';
 import { Template } from '../types';
 import { sendTemplateMessage } from '../api/services';
 
-interface MediaConfig {
-  templateName: string;
-  mediaType: 'image' | 'video' | 'document';
-  mediaUrl: string;
-  filename?: string;
-}
-
 interface TestMessagePanelProps {
   selectedTemplate: Template | null;
   selectedDatabases: string[];
-  mediaConfig?: MediaConfig | null;
 }
 
 interface TestResult {
@@ -27,8 +19,7 @@ interface TestResult {
 
 const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
   selectedTemplate,
-  selectedDatabases,
-  mediaConfig
+  selectedDatabases
 }) => {
   const [testNumber, setTestNumber] = useState<string>('');
   const [isSending, setIsSending] = useState<boolean>(false);
@@ -48,7 +39,7 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
     setTestResult(null);
 
     try {
-      const result = await sendTemplateMessage(testNumber.trim(), selectedTemplate.name, selectedDatabases, mediaConfig);
+      const result = await sendTemplateMessage(testNumber.trim(), selectedTemplate.name, selectedDatabases);
       
       console.log('📤 Resultado del Envío:', result);
       
@@ -270,45 +261,19 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
           {selectedTemplate && selectedTemplate.components?.some(comp => 
             comp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)
           ) && (
-            <div className={`p-4 rounded-xl border ${
-              mediaConfig && mediaConfig.templateName === selectedTemplate.name
-                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                : 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
-            }`}>
+            <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
               <div className="flex items-center space-x-2 mb-2">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                  mediaConfig && mediaConfig.templateName === selectedTemplate.name
-                    ? 'bg-green-500'
-                    : 'bg-orange-500'
-                }`}>
-                  <span className="text-white text-xs font-bold">
-                    {mediaConfig && mediaConfig.templateName === selectedTemplate.name ? '✅' : '⚠️'}
-                  </span>
+                <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">📷</span>
                 </div>
-                <span className={`font-semibold ${
-                  mediaConfig && mediaConfig.templateName === selectedTemplate.name
-                    ? 'text-green-800 dark:text-green-200'
-                    : 'text-orange-800 dark:text-orange-200'
-                }`}>
-                  {mediaConfig && mediaConfig.templateName === selectedTemplate.name
-                    ? 'Multimedia Configurado'
-                    : 'Multimedia Requerido'
-                  }
+                <span className="font-semibold text-purple-800 dark:text-purple-200">
+                  Plantilla Multimedia Detectada
                 </span>
               </div>
-              {mediaConfig && mediaConfig.templateName === selectedTemplate.name ? (
-                <div className="text-sm text-green-700 dark:text-green-300 space-y-1">
-                  <p>✅ Multimedia configurado correctamente:</p>
-                  <p>• <strong>Tipo:</strong> {mediaConfig.mediaType.toUpperCase()}</p>
-                  <p>• <strong>URL:</strong> {mediaConfig.mediaUrl}</p>
-                  {mediaConfig.filename && <p>• <strong>Archivo:</strong> {mediaConfig.filename}</p>}
-                </div>
-              ) : (
-                <p className="text-sm text-orange-700 dark:text-orange-300">
-                  ⚠️ Esta plantilla requiere configuración de multimedia. 
-                  Ve a la sección "Plantilla de Mensaje" y haz clic en "Configurar Media".
-                </p>
-              )}
+              <p className="text-sm text-purple-700 dark:text-purple-300">
+                Esta plantilla requiere parámetros multimedia (imagen/video/documento). 
+                Se usará una imagen por defecto para la prueba.
+              </p>
             </div>
           )}
           
@@ -354,11 +319,6 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
           <li>• El número debe estar <strong>activo en WhatsApp</strong></li>
           <li>• Algunos números pueden tener <strong>restricciones</strong> de mensajes comerciales</li>
           <li>• La <strong>primera vez</strong> puede tomar más tiempo en llegar</li>
-          {selectedTemplate && selectedTemplate.components?.some(comp => 
-            comp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)
-          ) && (
-            <li>• Para plantillas multimedia, <strong>configura la URL</strong> de tu contenido hosteado</li>
-          )}
         </ul>
       </div>
     </div>
