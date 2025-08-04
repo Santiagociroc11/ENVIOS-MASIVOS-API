@@ -315,37 +315,23 @@ router.post('/send', async (req, res) => {
             }
             // If no parameters needed, don't add body component
           } else if (component.type === 'BUTTONS' && component.buttons) {
-            // Handle interactive buttons - each button needs its own component
+            // Handle interactive buttons - only add parameters for buttons that need them
             component.buttons.forEach((button, index) => {
-              if (button.type === 'QUICK_REPLY') {
+              if (button.type === 'URL' && button.url && button.example && button.example.length > 0) {
+                // Only URL buttons with dynamic parameters need components
                 components.push({
                   type: "button",
-                  sub_type: "quick_reply",
+                  sub_type: "url",
                   index: index.toString(),
                   parameters: [
                     {
-                      type: "payload",
-                      payload: `PAYLOAD_${index}`
+                      type: "text",
+                      text: button.example[0] || "default"
                     }
                   ]
                 });
-              } else if (button.type === 'URL' && button.url) {
-                // URL buttons with dynamic parameters
-                if (button.example && button.example.length > 0) {
-                  components.push({
-                    type: "button",
-                    sub_type: "url",
-                    index: index.toString(),
-                    parameters: [
-                      {
-                        type: "text",
-                        text: button.example[0] || "default"
-                      }
-                    ]
-                  });
-                }
               }
-              // PHONE_NUMBER buttons don't need parameters
+              // QUICK_REPLY and PHONE_NUMBER buttons don't need parameters - they go as defined in template
             });
           }
         }
