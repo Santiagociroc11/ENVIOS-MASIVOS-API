@@ -10,6 +10,7 @@ import AdvancedFilters from './components/AdvancedFilters';
 import TestMessagePanel from './components/TestMessagePanel';
 import TemplateManagement from './components/TemplateManagement';
 import StepByStepSending from './components/StepByStepSending';
+import SettingsPanel from './components/SettingsPanel';
 import { fetchTemplates, fetchConfiguredTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign } from './api/services';
 import { Template, ConfiguredTemplate, User } from './types';
 
@@ -520,8 +521,6 @@ function App() {
         {activeTab === 'send' && (
           <StepByStepSending
             selectedDatabases={selectedDatabases}
-            onSelectDatabases={setSelectedDatabases}
-            onDatabaseChange={setDatabaseInfo}
             templates={templates}
             selectedTemplate={selectedTemplate}
             onSelectTemplate={setSelectedTemplate}
@@ -557,22 +556,11 @@ function App() {
         )}
 
         {activeTab === 'settings' && (
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                <Settings className="w-4 h-4 text-white" />
-              </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Configuración</h2>
-            </div>
-            
-            <div className="text-center py-12">
-              <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Configuración del Sistema</h3>
-              <p className="text-gray-500 dark:text-gray-400">
-                Próximamente: Configuración de API, plantillas personalizadas, y más opciones avanzadas.
-              </p>
-            </div>
-          </div>
+          <SettingsPanel
+            selectedDatabases={selectedDatabases}
+            onSelectDatabases={setSelectedDatabases}
+            onDatabaseChange={setDatabaseInfo}
+          />
         )}
       </main>
 

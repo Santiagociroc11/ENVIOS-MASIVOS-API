@@ -1,6 +1,5 @@
 import React from 'react';
-import { Check, ChevronRight, Database, MessageSquare, Send, Users, Zap } from 'lucide-react';
-import DatabaseSelector from './DatabaseSelector';
+import { Check, ChevronRight, MessageSquare, Send, Users, Zap } from 'lucide-react';
 import TemplateSelector from './TemplateSelector';
 import TestMessagePanel from './TestMessagePanel';
 import AdvancedFilters from './AdvancedFilters';
@@ -16,10 +15,8 @@ interface FilterCondition {
 }
 
 interface StepByStepSendingProps {
-  // Database props
+  // Database props (now managed in settings)
   selectedDatabases: string[];
-  onSelectDatabases: (databases: string[]) => void;
-  onDatabaseChange: (info: any) => void;
   
   // Template props
   templates: ConfiguredTemplate[];
@@ -57,8 +54,6 @@ interface StepByStepSendingProps {
 
 const StepByStepSending: React.FC<StepByStepSendingProps> = ({
   selectedDatabases,
-  onSelectDatabases,
-  onDatabaseChange,
   templates,
   selectedTemplate,
   onSelectTemplate,
@@ -83,11 +78,10 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
   users,
   onLoadMore
 }) => {
-  // Calculate step completion
-  const isStep1Complete = selectedDatabases.length > 0;
-  const isStep2Complete = selectedTemplate !== null;
-  const isStep3Complete = selectedUsers.length > 0;
-  const canSend = isStep1Complete && isStep2Complete && isStep3Complete;
+  // Calculate step completion (simplified to 3 steps)
+  const isStep1Complete = selectedTemplate !== null;
+  const isStep2Complete = selectedUsers.length > 0;
+  const canSend = isStep1Complete && isStep2Complete && selectedDatabases.length > 0;
 
   const StepIndicator = ({ stepNumber, title, isComplete, isActive, icon: Icon }: {
     stepNumber: number;
@@ -134,39 +128,23 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
         </div>
         
         {/* Step Indicators */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <StepIndicator
             stepNumber={1}
-            title="Base de Datos"
+            title="Plantilla"
             isComplete={isStep1Complete}
             isActive={!isStep1Complete}
-            icon={Database}
-          />
-          <div className="hidden md:flex items-center justify-center">
-            <ChevronRight className="text-gray-400" size={24} />
-          </div>
-          <StepIndicator
-            stepNumber={2}
-            title="Plantilla"
-            isComplete={isStep2Complete}
-            isActive={isStep1Complete && !isStep2Complete}
             icon={MessageSquare}
           />
-          <div className="hidden md:flex items-center justify-center">
-            <ChevronRight className="text-gray-400" size={24} />
-          </div>
           <StepIndicator
-            stepNumber={3}
+            stepNumber={2}
             title="Usuarios"
-            isComplete={isStep3Complete}
-            isActive={isStep2Complete && !isStep3Complete}
+            isComplete={isStep2Complete}
+            isActive={isStep1Complete && !isStep2Complete}
             icon={Users}
           />
-          <div className="hidden md:flex items-center justify-center">
-            <ChevronRight className="text-gray-400" size={24} />
-          </div>
           <StepIndicator
-            stepNumber={4}
+            stepNumber={3}
             title="Enviar"
             isComplete={false}
             isActive={canSend}
@@ -175,59 +153,51 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
         </div>
       </div>
 
-      {/* Step 1: Database Selection */}
-      <div className={`transition-all duration-500 ${!isStep1Complete ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}>
+      {/* Database Status Info */}
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-6 border border-blue-200 dark:border-gray-600">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+              <Check className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                🗄️ Bases de Datos Configuradas
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {selectedDatabases.length > 0 
+                  ? `${selectedDatabases.length} base${selectedDatabases.length !== 1 ? 's' : ''} de datos activa${selectedDatabases.length !== 1 ? 's' : ''}: ${selectedDatabases.join(', ')}`
+                  : 'No hay bases de datos configuradas'
+                }
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Para cambiar las bases de datos:</p>
+            <p className="text-sm font-medium text-blue-600 dark:text-blue-400">⚙️ Ve a Configuración</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Step 1: Template Selection */}
+      <div className={`transition-all duration-500 ${
+        !isStep1Complete ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
+      }`}>
         <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
                 isStep1Complete 
                   ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
-                  : 'bg-gradient-to-r from-indigo-500 to-purple-500'
+                  : 'bg-gradient-to-r from-purple-500 to-pink-500'
               }`}>
-                {isStep1Complete ? <Check className="w-4 h-4 text-white" /> : <Database className="w-4 h-4 text-white" />}
+                {isStep1Complete ? <Check className="w-4 h-4 text-white" /> : <MessageSquare className="w-4 h-4 text-white" />}
               </div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                1. Seleccionar Base de Datos
+                1. Elegir Plantilla de Mensaje
               </h2>
             </div>
             {isStep1Complete && (
-              <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
-                <Check size={20} />
-                <span className="font-medium">Completado</span>
-              </div>
-            )}
-          </div>
-          
-          <DatabaseSelector 
-            selectedDatabases={selectedDatabases}
-            onSelectDatabases={onSelectDatabases}
-            onDatabaseChange={onDatabaseChange}
-          />
-        </div>
-      </div>
-
-      {/* Step 2: Template Selection */}
-      <div className={`transition-all duration-500 ${
-        isStep1Complete && !isStep2Complete ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
-      } ${!isStep1Complete ? 'opacity-50 pointer-events-none' : ''}`}>
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
-                isStep2Complete 
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
-                  : isStep1Complete 
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
-                    : 'bg-gray-400'
-              }`}>
-                {isStep2Complete ? <Check className="w-4 h-4 text-white" /> : <MessageSquare className="w-4 h-4 text-white" />}
-              </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                2. Elegir Plantilla de Mensaje
-              </h2>
-            </div>
-            {isStep2Complete && (
               <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
                 <Check size={20} />
                 <span className="font-medium">Completado</span>
@@ -244,8 +214,8 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
         </div>
       </div>
 
-      {/* Step 2.5: Test Message (Optional) */}
-      {isStep2Complete && (
+      {/* Step 1.5: Test Message (Optional) */}
+      {isStep1Complete && (
         <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-2xl p-6 border border-yellow-200 dark:border-yellow-800">
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
@@ -263,28 +233,28 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
         </div>
       )}
 
-      {/* Step 3: User Selection */}
+      {/* Step 2: User Selection */}
       <div className={`transition-all duration-500 ${
-        isStep2Complete && !isStep3Complete ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
-      } ${!isStep2Complete ? 'opacity-50 pointer-events-none' : ''}`}>
+        isStep1Complete && !isStep2Complete ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
+      } ${!isStep1Complete ? 'opacity-50 pointer-events-none' : ''}`}>
         <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
-                isStep3Complete 
+                isStep2Complete 
                   ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
-                  : isStep2Complete 
+                  : isStep1Complete 
                     ? 'bg-gradient-to-r from-blue-500 to-cyan-500' 
                     : 'bg-gray-400'
               }`}>
-                {isStep3Complete ? <Check className="w-4 h-4 text-white" /> : <Users className="w-4 h-4 text-white" />}
+                {isStep2Complete ? <Check className="w-4 h-4 text-white" /> : <Users className="w-4 h-4 text-white" />}
               </div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                3. Seleccionar Usuarios ({filteredUsers.length})
+                2. Seleccionar Usuarios ({filteredUsers.length})
               </h2>
             </div>
             <div className="flex items-center space-x-4">
-              {isStep3Complete && (
+              {isStep2Complete && (
                 <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
                   <Check size={20} />
                   <span className="font-medium">{selectedUsers.length} seleccionados</span>
@@ -366,7 +336,7 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
         </div>
       </div>
 
-      {/* Step 4: Ready to Send */}
+      {/* Step 3: Ready to Send */}
       {canSend && (
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl p-8 border-2 border-green-300 dark:border-green-700 shadow-xl">
           <div className="text-center">
@@ -381,9 +351,12 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Base de Datos</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Bases de Datos</p>
                 <p className="font-semibold text-lg text-gray-900 dark:text-white">
-                  {selectedDatabases.length} seleccionadas
+                  {selectedDatabases.length} configurada{selectedDatabases.length !== 1 ? 's' : ''}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {selectedDatabases.join(', ')}
                 </p>
               </div>
               <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
