@@ -45,6 +45,29 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Root endpoint with API info
+app.get('/', (req, res) => {
+  // Check if this is an API request (Accept header contains application/json)
+  const acceptsJson = req.headers.accept && req.headers.accept.includes('application/json');
+  
+  if (acceptsJson) {
+    res.json({
+      message: "WhatsApp Template Messenger API",
+      version: "1.0.0",
+      endpoints: {
+        health: "/health",
+        databases: "/api/databases",
+        templates: "/api/templates",
+        users: "/api/users/pending",
+        messages: "/api/messages/send"
+      }
+    });
+  } else {
+    // Serve the React app for browser requests
+    res.sendFile(path.resolve(__dirname, '../dist', 'index.html'));
+  }
+});
+
 // API Routes
 app.use('/api/databases', databaseRoutes);
 app.use('/api/templates', templateRoutes);
@@ -58,7 +81,6 @@ app.use('/api/*', (req, res) => {
     path: req.path,
     method: req.method
   });
-      databases: "/api/databases",
 });
 
 // Serve static files (frontend)
