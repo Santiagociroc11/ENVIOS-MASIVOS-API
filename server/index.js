@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// MongoDB connection for campaigns and system data
+const CAMPAIGNS_DB_URI = 'mongodb+srv://chatbot:Jsdrevolution123.@cluster0.mzz8o50.mongodb.net/whatsapp-campaigns?retryWrites=true&w=majority';
+
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -111,6 +114,18 @@ app.use((err, req, res, next) => {
     message: err.message,
     path: req.path
   });
+});
+
+// Connect to campaigns database
+mongoose.connect(CAMPAIGNS_DB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => {
+  console.log('✅ Connected to campaigns database: whatsapp-campaigns');
+})
+.catch((error) => {
+  console.error('❌ Error connecting to campaigns database:', error);
 });
 
 // Start server
