@@ -35,7 +35,7 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              📊 Usuarios a Mostrar
+              Usuarios a Mostrar
             </label>
             <div className="relative">
               <select
@@ -44,15 +44,15 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
                 className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm appearance-none"
                 disabled={isSending}
               >
-                <option value={10}>📑 10 usuarios</option>
-                <option value={25}>📋 25 usuarios</option>
-                <option value={50}>📄 50 usuarios</option>
-                <option value={100}>📚 100 usuarios</option>
-                <option value={250}>📖 250 usuarios</option>
-                <option value={500}>📗 500 usuarios</option>
-                <option value={1000}>📘 1,000 usuarios</option>
-                <option value={2500}>📙 2,500 usuarios</option>
-                <option value={-1}>🌟 TODOS los usuarios</option>
+                <option value={10}>10 usuarios</option>
+                <option value={25}>25 usuarios</option>
+                <option value={50}>50 usuarios</option>
+                <option value={100}>100 usuarios</option>
+                <option value={250}>250 usuarios</option>
+                <option value={500}>500 usuarios</option>
+                <option value={1000}>1,000 usuarios</option>
+                <option value={2500}>2,500 usuarios</option>
+                <option value={-1}>TODOS los usuarios</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,7 +68,7 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
             disabled={isSending}
           >
             <CheckCircle2 size={16} className="mr-2" />
-            {selectedCount > 0 ? '🔄 Deseleccionar Todo' : '✅ Seleccionar Todo'}
+            {selectedCount > 0 ? 'Deseleccionar Todo' : 'Seleccionar Todo'}
           </button>
         </div>
         
@@ -95,7 +95,7 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
                   ? 'text-green-600 dark:text-green-400' 
                   : 'text-red-500 dark:text-red-400'
               }`}>
-                {selectedTemplate ? '✅ Lista' : '❌ No Seleccionada'}
+                {selectedTemplate ? 'Lista' : 'No Seleccionada'}
               </span>
             </div>
           </div>
@@ -114,10 +114,10 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
           >
             <Send size={20} className="mr-3" />
             {isSending 
-              ? '📤 Enviando...' 
+              ? 'Enviando...' 
               : selectedTemplate && selectedCount > 0 
-                ? `🚀 Enviar a ${selectedCount} Usuario${selectedCount !== 1 ? 's' : ''}` 
-                : '⚠️ Configurar para Enviar'
+                ? `Enviar a ${selectedCount} Usuario${selectedCount !== 1 ? 's' : ''}` 
+                : 'Configurar para Enviar'
             }
           </button>
         </div>
@@ -126,9 +126,7 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
       {(!selectedTemplate || selectedCount === 0) && !isSending && (
         <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
           <div className="flex items-center space-x-2">
-            <div className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-xs font-bold">!</span>
-            </div>
+            <div className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-white text-xs font-bold">!</div>
             <div className="text-sm text-amber-800 dark:text-amber-200">
               <span className="font-semibold">Acción Requerida:</span>
               {!selectedTemplate && ' Por favor selecciona una plantilla primero.'}

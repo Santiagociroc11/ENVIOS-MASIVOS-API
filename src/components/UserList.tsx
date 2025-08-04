@@ -17,7 +17,7 @@ const UserList: React.FC<UserListProps> = ({ users, selectedUsers, onToggleSelec
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">🔍 No se encontraron usuarios</h3>
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No se encontraron usuarios</h3>
         <p className="text-gray-500 dark:text-gray-400">Ningún usuario coincide con tus criterios de búsqueda actuales. Intenta ajustar tus filtros.</p>
       </div>
     );
@@ -36,19 +36,19 @@ const UserList: React.FC<UserListProps> = ({ users, selectedUsers, onToggleSelec
                 </div>
               </th>
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                📱 Número WhatsApp
+                Número WhatsApp
               </th>
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                📊 Estado
+                Estado
               </th>
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                💳 Método de Pago
+                Método de Pago
               </th>
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                ⏰ Tiempo Desde Solicitud
+                Tiempo Desde Solicitud
               </th>
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                ✉️ Enviado
+                Enviado
               </th>
             </tr>
           </thead>
@@ -113,7 +113,7 @@ const UserList: React.FC<UserListProps> = ({ users, selectedUsers, onToggleSelec
                       ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 dark:from-green-800 dark:to-emerald-800 dark:text-green-100' 
                       : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-600 dark:from-gray-700 dark:to-gray-600 dark:text-gray-300'
                   }`}>
-                    {user.enviado ? '✅ Sí' : '❌ No'}
+                    {user.enviado ? 'Sí' : 'No'}
                   </span>
                 </td>
               </tr>

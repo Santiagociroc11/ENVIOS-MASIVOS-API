@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, RefreshCw, Filter, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Send, RefreshCw, Filter, CheckCircle2, ChevronDown, ChevronUp, Database, MessageSquare, Users, History, Settings } from 'lucide-react';
 import DatabaseSelector from './components/DatabaseSelector';
 import TemplateSelector from './components/TemplateSelector';
 import UserList from './components/UserList';
 import SendingPanel from './components/SendingPanel';
 import SendingModal from './components/SendingModal';
+import MessageHistory from './components/MessageHistory';
 import { fetchTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios } from './api/services';
 import { Template, User } from './types';
 
@@ -15,7 +16,10 @@ interface SendingResult {
   timestamp: number;
 }
 
+type TabType = 'send' | 'history' | 'settings';
+
 function App() {
+  const [activeTab, setActiveTab] = useState<TabType>('send');
   const [selectedDatabases, setSelectedDatabases] = useState<string[]>(['bot-win-2']);
   const [databaseInfo, setDatabaseInfo] = useState<any>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -48,10 +52,9 @@ function App() {
   const [errorCount, setErrorCount] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
-  const [sendingSpeed, setSendingSpeed] = useState<number>(1000); // Default: Normal speed
+  const [sendingSpeed, setSendingSpeed] = useState<number>(1000);
   const [shouldCancel, setShouldCancel] = useState<boolean>(false);
   
-  // Ref to control the sending process
   const sendingControlRef = useRef<{ cancel: boolean; pause: boolean }>({ cancel: false, pause: false });
 
   // Fetch templates and users on mount
@@ -76,7 +79,6 @@ function App() {
             count: response.count
           });
           
-          // Load available filters
           const estadosData = await fetchEstados(selectedDatabases);
           const mediosData = await fetchMedios(selectedDatabases);
           setAvailableEstados(estadosData);
@@ -97,24 +99,20 @@ function App() {
   useEffect(() => {
     let filtered = [...users];
     
-    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(user => 
         user.whatsapp.includes(searchTerm)
       );
     }
     
-    // Apply status filter
     if (filter.status !== 'all') {
       filtered = filtered.filter(user => user.estado === filter.status);
     }
     
-    // Apply payment method filter
     if (filter.paymentMethod !== 'all') {
       filtered = filtered.filter(user => user.medio === filter.paymentMethod);
     }
     
-    // Apply order
     filtered = filtered.sort((a, b) => {
       const timeA = a.medio_at || 0;
       const timeB = b.medio_at || 0;
@@ -144,7 +142,6 @@ function App() {
           count: response.count
         });
         
-        // Refresh available filters
         const estadosData = await fetchEstados(selectedDatabases);
         const mediosData = await fetchMedios(selectedDatabases);
         setAvailableEstados(estadosData);
@@ -176,10 +173,10 @@ function App() {
 
   const getSpeedDelay = (speed: number): number => {
     const speedMap: { [key: number]: number } = {
-      500: 2000,   // Lento: 2 segundos
-      1000: 1000,  // Normal: 1 segundo
-      1500: 500,   // Rápido: 0.5 segundos
-      2000: 200    // Muy rápido: 0.2 segundos
+      500: 2000,
+      1000: 1000,
+      1500: 500,
+      2000: 200
     };
     return speedMap[speed] || 1000;
   };
@@ -198,7 +195,6 @@ function App() {
   const handleSendMessages = async () => {
     if (!selectedTemplate || selectedUsers.length === 0) return;
     
-    // Reset and initialize sending state
     resetSendingState();
     setIsSending(true);
     setShowSendingModal(true);
@@ -212,12 +208,10 @@ function App() {
     const localResults: SendingResult[] = [];
     
     for (let i = 0; i < usersToMessage.length; i++) {
-      // Check for cancellation
       if (sendingControlRef.current.cancel) {
         break;
       }
       
-      // Check for pause
       while (sendingControlRef.current.pause && !sendingControlRef.current.cancel) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
@@ -245,7 +239,6 @@ function App() {
         if (result.success) {
           localSuccessCount++;
           setSuccessCount(localSuccessCount);
-          // Mark as sent in the database
           await markMessageSent(user.whatsapp, selectedDatabases);
         } else {
           localErrorCount++;
@@ -266,7 +259,6 @@ function App() {
         setErrorCount(localErrorCount);
       }
       
-      // Wait according to speed setting (except for the last message)
       if (i < usersToMessage.length - 1) {
         await new Promise(resolve => setTimeout(resolve, getSpeedDelay(sendingSpeed)));
       }
@@ -275,7 +267,6 @@ function App() {
     setIsSending(false);
     setIsCompleted(true);
     
-    // Refresh the user list after sending
     setTimeout(() => {
       handleRefresh();
     }, 1000);
@@ -324,241 +315,292 @@ function App() {
     }
   };
 
+  const tabs = [
+    { id: 'send', label: 'Enviar Mensajes', icon: Send, color: 'from-blue-500 to-purple-500' },
+    { id: 'history', label: 'Historial de Envíos', icon: History, color: 'from-green-500 to-teal-500' },
+    { id: 'settings', label: 'Configuración', icon: Settings, color: 'from-orange-500 to-red-500' }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900">
-      {/* Header */}
-      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-lg border-b border-gray-200/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center space-x-4">
-            <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Send className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-slate-800 dark:to-indigo-900">
+      {/* Modern Header */}
+      <header className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl shadow-lg border-b border-gray-200/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <MessageSquare className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
+                  WhatsApp Messenger Pro
+                </h1>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Sistema avanzado de mensajería masiva
+                </p>
               </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
-                Mensajería de Plantillas WhatsApp
-              </h1>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 max-w-2xl">
-                🚀 Envía mensajes personalizados a usuarios que solicitaron pago pero no completaron su compra
-                {databaseInfo && (
-                  <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg text-xs font-medium">
-                    📊 {databaseInfo.name} ({databaseInfo.count} usuarios)
-                  </span>
-                )}
-              </p>
-            </div>
+            
+            {databaseInfo && (
+              <div className="hidden md:flex items-center space-x-3">
+                <div className="bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 px-4 py-2 rounded-xl">
+                  <div className="flex items-center space-x-2">
+                    <Database className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      {databaseInfo.name}
+                    </span>
+                    <span className="text-xs text-blue-600 dark:text-blue-400">
+                      ({databaseInfo.count} usuarios)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
+      {/* Tab Navigation */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/20 p-2">
+          <nav className="flex space-x-2">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as TabType)}
+                  className={`flex items-center space-x-3 px-6 py-4 rounded-xl font-medium transition-all duration-200 ${
+                    isActive
+                      ? `bg-gradient-to-r ${tab.color} text-white shadow-lg transform scale-105`
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="font-semibold">{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 mb-8 border border-gray-200/20">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
-              <Search className="w-4 h-4 text-white" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">🗄️ Selección de Base de Datos</h2>
-          </div>
-          
-          <DatabaseSelector 
-            selectedDatabases={selectedDatabases}
-            onSelectDatabases={setSelectedDatabases}
-            onDatabaseChange={setDatabaseInfo}
-          />
-        </div>
-
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 mb-8 border border-gray-200/20">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-              <Search className="w-4 h-4 text-white" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">📋 Selección de Plantilla</h2>
-          </div>
-          
-          <TemplateSelector 
-            templates={templates}
-            selectedTemplate={selectedTemplate}
-            onSelectTemplate={setSelectedTemplate}
-            loading={loading}
-          />
-        </div>
-
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4 text-white" />
-              </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                👥 Usuarios ({filteredUsers.length})
-              </h2>
-            </div>
-            <button
-              onClick={handleRefresh}
-              className="flex items-center px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              disabled={loading}
-            >
-              <RefreshCw size={16} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Actualizar Datos
-            </button>
-          </div>
-
-          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-y-0 md:space-x-4 mb-6">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={20} className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                className="pl-12 block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white py-4 text-lg placeholder-gray-400 transition-all duration-200 hover:shadow-xl"
-                placeholder="🔍 Buscar por número de WhatsApp..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
-            
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center px-6 py-4 text-sm font-medium rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                showFilters 
-                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-purple-500/25' 
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600'
-              }`}
-            >
-              <Filter size={16} className="mr-2" />
-              Filtros Avanzados
-              {showFilters ? <ChevronUp size={16} className="ml-2" /> : <ChevronDown size={16} className="ml-2" />}
-            </button>
-          </div>
-
-          {/* Filters panel */}
-          {showFilters && (
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-gray-700 dark:to-gray-600 p-6 rounded-2xl mb-6 border border-purple-200 dark:border-gray-500 shadow-lg">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                  <Filter className="w-3 h-3 text-white" />
+        {activeTab === 'send' && (
+          <div className="space-y-8">
+            {/* Database Selection */}
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+                  <Database className="w-4 h-4 text-white" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">🎛️ Filtros Avanzados</h3>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Base de Datos</h2>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    📊 Filtro de Estado
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={filter.status}
-                      onChange={(e) => setFilter({...filter, status: e.target.value})}
-                      className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm appearance-none"
-                    >
-                      <option value="all">✨ Todos los Estados</option>
-                      {availableEstados.map((estado) => (
-                        <option key={estado} value={estado}>
-                          📊 {estado}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    </div>
+              <DatabaseSelector 
+                selectedDatabases={selectedDatabases}
+                onSelectDatabases={setSelectedDatabases}
+                onDatabaseChange={setDatabaseInfo}
+              />
+            </div>
+
+            {/* Template Selection */}
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                  <MessageSquare className="w-4 h-4 text-white" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Plantilla de Mensaje</h2>
+              </div>
+              
+              <TemplateSelector 
+                templates={templates}
+                selectedTemplate={selectedTemplate}
+                onSelectTemplate={setSelectedTemplate}
+                loading={loading}
+              />
+            </div>
+
+            {/* Users Management */}
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                    <Users className="w-4 h-4 text-white" />
                   </div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Usuarios ({filteredUsers.length})
+                  </h2>
+                </div>
+                <button
+                  onClick={handleRefresh}
+                  className="flex items-center px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  disabled={loading}
+                >
+                  <RefreshCw size={16} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Actualizar
+                </button>
+              </div>
+
+              {/* Search and Filters */}
+              <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-y-0 md:space-x-4 mb-6">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Search size={20} className="text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    className="pl-12 block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white py-4 text-lg placeholder-gray-400 transition-all duration-200 hover:shadow-xl"
+                    placeholder="Buscar por número de WhatsApp..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                  />
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    💳 Método de Pago
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={filter.paymentMethod}
-                      onChange={(e) => setFilter({...filter, paymentMethod: e.target.value})}
-                      className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm appearance-none"
-                    >
-                      <option value="all">🌟 Todos los Métodos</option>
-                      {availableMedios.map((medio) => (
-                        <option key={medio} value={medio}>
-                          💳 {medio}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center px-6 py-4 text-sm font-medium rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    showFilters 
+                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-purple-500/25' 
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  <Filter size={16} className="mr-2" />
+                  Filtros
+                  {showFilters ? <ChevronUp size={16} className="ml-2" /> : <ChevronDown size={16} className="ml-2" />}
+                </button>
+              </div>
+
+              {/* Filters Panel */}
+              {showFilters && (
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-gray-700 dark:to-gray-600 p-6 rounded-2xl mb-6 border border-purple-200 dark:border-gray-500 shadow-lg">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                        Estado
+                      </label>
+                      <select
+                        value={filter.status}
+                        onChange={(e) => setFilter({...filter, status: e.target.value})}
+                        className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm"
+                      >
+                        <option value="all">Todos los Estados</option>
+                        {availableEstados.map((estado) => (
+                          <option key={estado} value={estado}>
+                            {estado}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                        Método de Pago
+                      </label>
+                      <select
+                        value={filter.paymentMethod}
+                        onChange={(e) => setFilter({...filter, paymentMethod: e.target.value})}
+                        className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm"
+                      >
+                        <option value="all">Todos los Métodos</option>
+                        {availableMedios.map((medio) => (
+                          <option key={medio} value={medio}>
+                            {medio}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                        Orden
+                      </label>
+                      <select
+                        value={sendingOrder}
+                        onChange={(e) => setSendingOrder(e.target.value as 'asc' | 'desc')}
+                        className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm"
+                      >
+                        <option value="desc">Más Recientes Primero</option>
+                        <option value="asc">Más Antiguos Primero</option>
+                      </select>
                     </div>
                   </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                    ⏰ Orden de Envío
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={sendingOrder}
-                      onChange={(e) => setSendingOrder(e.target.value as 'asc' | 'desc')}
-                      className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm appearance-none"
-                    >
-                      <option value="desc">🔽 Más Recientes Primero</option>
-                      <option value="asc">🔼 Más Antiguos Primero</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    </div>
+              )}
+
+              <SendingPanel 
+                quantity={quantity} 
+                setQuantity={setQuantity}
+                selectedTemplate={selectedTemplate}
+                selectedCount={selectedUsers.length}
+                onSendMessages={handleSendMessages}
+                onSelectAll={handleSelectAll}
+                isSending={isSending}
+              />
+
+              <UserList 
+                users={filteredUsers.slice(0, quantity)}
+                selectedUsers={selectedUsers}
+                onToggleSelection={toggleUserSelection}
+              />
+              
+              {pagination?.hasMore && !loadingAll && quantity !== -1 && (
+                <div className="mt-6 text-center">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loading}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Cargando...' : `Cargar Más Usuarios (${pagination.total - users.length} restantes)`}
+                  </button>
+                </div>
+              )}
+              
+              {loadingAll && (
+                <div className="mt-6 text-center">
+                  <div className="inline-flex items-center px-6 py-3 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+                    <span className="font-medium">Cargando TODOS los usuarios...</span>
                   </div>
                 </div>
-              </div>
+              )}
+              
+              {pagination?.loadedAll && (
+                <div className="mt-6 text-center">
+                  <div className="inline-flex items-center px-6 py-3 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-lg">
+                    <span className="font-medium">✅ Se cargaron TODOS los usuarios ({users.length} total)</span>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
 
-          <SendingPanel 
-            quantity={quantity} 
-            setQuantity={setQuantity}
-            selectedTemplate={selectedTemplate}
-            selectedCount={selectedUsers.length}
-            onSendMessages={handleSendMessages}
-            onSelectAll={handleSelectAll}
-            isSending={isSending}
-          />
+        {activeTab === 'history' && (
+          <MessageHistory selectedDatabases={selectedDatabases} />
+        )}
 
-          <UserList 
-            users={filteredUsers.slice(0, quantity)}
-            selectedUsers={selectedUsers}
-            onToggleSelection={toggleUserSelection}
-          />
-          
-          {/* Load More Button */}
-          {pagination?.hasMore && !loadingAll && quantity !== -1 && (
-            <div className="mt-6 text-center">
-              <button
-                onClick={handleLoadMore}
-                disabled={loading}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-              >
-                {loading ? '⏳ Cargando...' : `📄 Cargar Más Usuarios (${pagination.total - users.length} restantes)`}
-              </button>
-            </div>
-          )}
-          
-          {/* Loading All Indicator */}
-          {loadingAll && (
-            <div className="mt-6 text-center">
-              <div className="inline-flex items-center px-6 py-3 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
-                <span className="font-medium">🌟 Cargando TODOS los usuarios... Esto puede tomar un momento</span>
+        {activeTab === 'settings' && (
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+                <Settings className="w-4 h-4 text-white" />
               </div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Configuración</h2>
             </div>
-          )}
-          
-          {/* All Users Loaded Indicator */}
-          {pagination?.loadedAll && (
-            <div className="mt-6 text-center">
-              <div className="inline-flex items-center px-6 py-3 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-lg">
-                <span className="font-medium">✅ Se cargaron TODOS los usuarios ({users.length} total)</span>
-              </div>
+            
+            <div className="text-center py-12">
+              <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Configuración del Sistema</h3>
+              <p className="text-gray-500 dark:text-gray-400">
+                Próximamente: Configuración de API, plantillas personalizadas, y más opciones avanzadas.
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
 
       {/* Sending Modal */}
