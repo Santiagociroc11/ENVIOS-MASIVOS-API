@@ -32,7 +32,10 @@ export const fetchFilteredUsers = async (databases?: string[], page: number = 1,
     params.append('page', page.toString());
     params.append('limit', limit.toString());
     
-    const response = await axios.get(`${API_BASE_URL}/users/pending?${params.toString()}`);
+    const url = `${API_BASE_URL}/users/pending?${params.toString()}`;
+    console.log('🔗 Fetching users from:', url);
+    
+    const response = await axios.get(url);
     return response.data;
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -46,7 +49,11 @@ export const fetchEstados = async (databases?: string[]): Promise<string[]> => {
     if (databases && databases.length > 0) {
       params.append('databases', databases.join(','));
     }
-    const response = await axios.get(`${API_BASE_URL}/users/estados?${params.toString()}`);
+    
+    const url = `${API_BASE_URL}/users/estados?${params.toString()}`;
+    console.log('🔗 Fetching estados from:', url);
+    
+    const response = await axios.get(url);
     return response.data.estados || [];
   } catch (error) {
     console.error('Error fetching estados:', error);
@@ -60,7 +67,11 @@ export const fetchMedios = async (databases?: string[]): Promise<string[]> => {
     if (databases && databases.length > 0) {
       params.append('databases', databases.join(','));
     }
-    const response = await axios.get(`${API_BASE_URL}/users/medios?${params.toString()}`);
+    
+    const url = `${API_BASE_URL}/users/medios?${params.toString()}`;
+    console.log('🔗 Fetching medios from:', url);
+    
+    const response = await axios.get(url);
     return response.data.medios || [];
   } catch (error) {
     console.error('Error fetching medios:', error);
