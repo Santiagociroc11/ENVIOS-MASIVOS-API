@@ -128,12 +128,23 @@ router.post('/send', async (req, res) => {
     console.log('📱 Enviando mensaje a:', phoneNumber, 'con plantilla:', templateName, 'desde DBs:', dbKeysArray);
     
     if (!phoneNumber || !templateName) {
+      console.log('❌ VALIDATION ERROR: Missing required fields');
+      console.log('📱 phoneNumber:', phoneNumber);
+      console.log('📋 templateName:', templateName);
       return res.status(400).json({ 
         success: false,
         error: 'Phone number and template name are required' 
       });
     }
 
+    console.log('🔍 === VALIDATING ENVIRONMENT VARIABLES ===');
+    console.log('🔑 META_ACCESS_TOKEN exists:', !!process.env.META_ACCESS_TOKEN);
+    console.log('📞 FROM_PHONE_NUMBER_ID exists:', !!process.env.FROM_PHONE_NUMBER_ID);
+    console.log('🏢 WHATSAPP_BUSINESS_ACCOUNT_ID exists:', !!process.env.WHATSAPP_BUSINESS_ACCOUNT_ID);
+    console.log('🔑 META_ACCESS_TOKEN (first 20 chars):', process.env.META_ACCESS_TOKEN?.substring(0, 20) + '...');
+    console.log('📞 FROM_PHONE_NUMBER_ID:', process.env.FROM_PHONE_NUMBER_ID);
+    console.log('🏢 WHATSAPP_BUSINESS_ACCOUNT_ID:', process.env.WHATSAPP_BUSINESS_ACCOUNT_ID);
+    console.log('=============================================');
 
     // Check if required environment variables are set
     if (!process.env.META_ACCESS_TOKEN || !process.env.FROM_PHONE_NUMBER_ID) {
@@ -388,6 +399,8 @@ router.post('/send', async (req, res) => {
     console.log('📋 Template Name:', templateName);
     console.log('🌍 Language:', templateMessage.template.language.code);
     console.log('🔧 Components Count:', templateMessage.template.components?.length || 0);
+    console.log('📦 COMPLETE REQUEST BODY:');
+    console.log(JSON.stringify(templateMessage, null, 2));
     console.log('==========================================');
 
     const response = await axios.post(

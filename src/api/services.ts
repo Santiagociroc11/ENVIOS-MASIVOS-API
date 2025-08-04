@@ -86,14 +86,46 @@ export const fetchMedios = async (databases?: string[]): Promise<string[]> => {
 
 export const sendTemplateMessage = async (phoneNumber: string, templateName: string, databases?: string[]): Promise<{ success: boolean; error?: string }> => {
   try {
+    console.log('🚀 === FRONTEND: ENVIANDO MENSAJE ===');
+    console.log('📱 Número:', phoneNumber);
+    console.log('📋 Plantilla:', templateName);
+    console.log('🗄️ Bases de Datos:', databases);
+    console.log('🌐 URL del API:', `${API_BASE_URL}/messages/send`);
+    
+    const requestBody = {
+      phoneNumber,
+      templateName,
+      databases
+    };
+    
+    console.log('📦 Request Body que se enviará:');
+    console.log(JSON.stringify(requestBody, null, 2));
+    console.log('=====================================');
+    
     const response = await axios.post(`${API_BASE_URL}/messages/send`, {
       phoneNumber,
       templateName,
       databases
     });
+    
+    console.log('✅ === FRONTEND: RESPUESTA RECIBIDA ===');
+    console.log('📊 Status:', response.status);
+    console.log('📦 Response Data:');
+    console.log(JSON.stringify(response.data, null, 2));
+    console.log('=====================================');
+    
     return { success: response.data.success };
   } catch (error: any) {
     console.error('Error sending template message:', error);
+    
+    console.log('❌ === FRONTEND: ERROR DETALLADO ===');
+    console.log('🚨 Error completo:', error);
+    console.log('📊 Response Status:', error.response?.status);
+    console.log('📦 Response Data:');
+    console.log(JSON.stringify(error.response?.data, null, 2));
+    console.log('🔗 Request URL:', error.config?.url);
+    console.log('📤 Request Data:', error.config?.data);
+    console.log('==================================');
     
     // Extract detailed error message from server response
     let errorMessage = 'Error desconocido';
