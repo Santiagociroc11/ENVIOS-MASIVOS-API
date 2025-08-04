@@ -368,18 +368,40 @@ router.post('/send', async (req, res) => {
 
     console.log('📤 Final template message:', JSON.stringify(templateMessage, null, 2));
 
+    // Log the complete API request details
+    const apiUrl = `https://graph.facebook.com/v17.0/${process.env.FROM_PHONE_NUMBER_ID}/messages`;
+    const headers = {
+      Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+      'Content-Type': 'application/json'
+    };
+    
+    console.log('🌐 === WHATSAPP API REQUEST DETAILS ===');
+    console.log('📍 URL:', apiUrl);
+    console.log('🔑 Headers:', {
+      ...headers,
+      Authorization: `Bearer ${process.env.META_ACCESS_TOKEN?.substring(0, 20)}...` // Hide full token
+    });
+    console.log('📦 Request Body (JSON):', JSON.stringify(templateMessage, null, 2));
+    console.log('📏 Body Size:', JSON.stringify(templateMessage).length, 'characters');
+    console.log('🎯 FROM_PHONE_NUMBER_ID:', process.env.FROM_PHONE_NUMBER_ID);
+    console.log('📱 TO:', phoneNumber);
+    console.log('📋 Template Name:', templateName);
+    console.log('🌍 Language:', templateMessage.template.language.code);
+    console.log('🔧 Components Count:', templateMessage.template.components?.length || 0);
+    console.log('==========================================');
+
     const response = await axios.post(
-      `https://graph.facebook.com/v17.0/${process.env.FROM_PHONE_NUMBER_ID}/messages`,
+      apiUrl,
       templateMessage,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
-          'Content-Type': 'application/json'
-        }
-      }
+      { headers }
     );
     
+    console.log('✅ === WHATSAPP API RESPONSE ===');
     console.log('✅ WhatsApp API Response:', response.data);
+    console.log('📊 Response Status:', response.status);
+    console.log('📨 Message ID:', response.data.messages?.[0]?.id);
+    console.log('👤 Contact Info:', response.data.contacts?.[0]);
+    console.log('================================');
     
     // Mark the user as messaged
     if (sourceDatabase) {
@@ -415,6 +437,18 @@ router.post('/send', async (req, res) => {
     });
   } catch (error) {
     console.error('Error sending template message:', error);
+    
+    // Log detailed error information
+    console.log('❌ === WHATSAPP API ERROR DETAILS ===');
+    console.log('🚨 Error Type:', error.name);
+    console.log('📄 Error Message:', error.message);
+    console.log('📊 Response Status:', error.response?.status);
+    console.log('📋 Response Headers:', error.response?.headers);
+    console.log('📦 Response Data:', JSON.stringify(error.response?.data, null, 2));
+    console.log('🔗 Request URL:', error.config?.url);
+    console.log('📤 Request Method:', error.config?.method?.toUpperCase());
+    console.log('📦 Request Data:', error.config?.data);
+    console.log('=====================================');
     
     // Extract specific WhatsApp error message
     let errorMessage = 'Failed to send message';
