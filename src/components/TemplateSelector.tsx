@@ -1,5 +1,6 @@
 import React from 'react';
 import { ConfiguredTemplate } from '../types';
+import WhatsAppPreview from './WhatsAppPreview';
 
 interface TemplateSelectorProps {
   templates: ConfiguredTemplate[];
@@ -209,7 +210,7 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
           
           {/* Interactive Template Info */}
           {/* Note: We'll need to check if original template has buttons - for now showing always */}
-          {true && (
+          {selectedTemplate.components?.some(c => c.type === 'BUTTONS') && (
             <div className="mt-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-xl border border-green-200 dark:border-green-800">
               <div className="flex items-center space-x-2 mb-2">
                 <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
@@ -225,6 +226,20 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
               </div>
             </div>
           )}
+
+          {/* WhatsApp Preview */}
+          <div className="mt-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                <span className="text-white text-sm">📱</span>
+              </div>
+              <h4 className="font-semibold text-gray-900 dark:text-white">Preview de WhatsApp</h4>
+              <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs rounded-full font-medium">
+                Vista Previa en Tiempo Real
+              </span>
+            </div>
+            <WhatsAppPreview configuredTemplate={selectedTemplate} />
+          </div>
         </div>
       )}
     </div>

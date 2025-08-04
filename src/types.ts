@@ -31,6 +31,24 @@ export interface ConfiguredTemplate {
   createdAt?: Date;
   updatedAt?: Date;
   isActive: boolean;
+  components?: Array<{
+    type: string;
+    format?: string;
+    text?: string;
+    parameters?: Array<{
+      type: string;
+    }>;
+    buttons?: Array<{
+      type: string;
+      text: string;
+      url?: string;
+      phone_number?: string;
+    }>;
+    example?: {
+      header_text?: string[][];
+      body_text?: string[][];
+    };
+  }>;
 }
 
 export interface User {
