@@ -197,11 +197,11 @@ router.post('/send', async (req, res) => {
       }
     };
 
-    // Get template information to build proper components
+    // Build components based on template structure
     try {
-      // Fetch template details to understand its structure
-      const templateResponse = await axios.get(
-        `https://graph.facebook.com/v17.0/${process.env.WHATSAPP_BUSINESS_ACCOUNT_ID}/message_templates?name=${templateName}`,
+      // Find the template in our cached templates
+      const templatesResponse = await axios.get(
+        `https://graph.facebook.com/v17.0/${process.env.WHATSAPP_BUSINESS_ACCOUNT_ID}/message_templates`,
         {
           headers: {
             Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`
@@ -209,28 +209,19 @@ router.post('/send', async (req, res) => {
         }
       );
       
-      const template = templateResponse.data.data?.[0];
+      const template = templatesResponse.data.data?.find(t => t.name === templateName);
       
       if (template && template.components) {
         const components = [];
         
-        // Process each component from the template
+        console.log('🎯 Processing template:', templateName);
+        console.log('📋 Template components:', template.components);
+        
         for (const component of template.components) {
-          if (component.type === 'HEADER') {
-            // Handle different header types
-            if (component.format === 'IMAGE') {
-              components.push({
-                type: "header",
-                parameters: [
-                  {
-                    type: "image",
-                    image: {
-                      link: "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800"
-                    }
-                  }
-                ]
-              });
-            } else if (component.format === 'VIDEO') {
+          console.log('🔧 Processing component:', component.type, component.format);
+          
+          if (component.type === 'HEADER' && component.format) {
+            if (component.format === 'VIDEO') {
               components.push({
                 type: "header",
                 parameters: [
@@ -238,6 +229,18 @@ router.post('/send', async (req, res) => {
                     type: "video",
                     video: {
                       link: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
+                    }
+                  }
+                ]
+              });
+            } else if (component.format === 'IMAGE') {
+              components.push({
+                type: "header",
+                parameters: [
+                  {
+                    type: "image",
+                    image: {
+                      link: "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800"
                     }
                   }
                 ]
@@ -255,6 +258,19 @@ router.post('/send', async (req, res) => {
                   }
                 ]
               });
+            } else if (component.format === 'TEXT' && component.example?.header_text) {
+              // Handle text headers with variables
+              const headerParams = component.example.header_text.map(text => ({
+                type: "text",
+                text: text
+              }));
+              
+              if (headerParams.length > 0) {
+                components.push({
+                  type: "header",
+                  parameters: headerParams
+                });
+              }
             } else if (component.format === 'LOCATION') {
               components.push({
                 type: "header",
@@ -270,26 +286,207 @@ router.post('/send', async (req, res) => {
                   }
                 ]
               });
-            } else if (component.format === 'TEXT' && component.example?.header_text) {
-              // Handle text headers with variables
-              const headerParams = component.example.header_text.map(text => ({
+            }
+          } else if (component.type === 'BODY') {
+            // Handle body parameters if they exist
+            if (component.example?.body_text && component.example.body_text[0]) {
+              const bodyParams = component.example.body_text[0].map(text => ({
                 type: "text",
                 text: text
               }));
               
-              if (headerParams.length > 0) {
+              if (bodyParams.length > 0) {
                 components.push({
-                  type: "header",
-                  parameters: headerParams
+                  type: "body",
+                  parameters: bodyParams
                 });
               }
             }
-          } else if (component.type === 'BODY' && component.example?.body_text) {
-            // Handle body parameters
-            const bodyParams = component.example.body_text[0].map(text => ({
-              type: "text",
-              text: text
-            }));
+            // If no parameters needed, don't add body component
+          } else if (component.type === 'BUTTONS' && component.buttons) {
+            // Handle interactive buttons - each button needs its own component
+            component.buttons.forEach((button, index) => {
+              if (button.type === 'QUICK_REPLY') {
+                components.push({
+                  type: "button",
+                  sub_type: "quick_reply",
+                  index: index.toString(),
+                  parameters: [
+                    {
+                      type: "payload",
+                      payload: `PAYLOAD_${index}`
+                    }
+                  ]
+                });
+              } else if (button.type === 'URL' && button.url) {
+                // URL buttons with dynamic parameters
+                if (button.example && button.example.length > 0) {
+                  components.push({
+                    type: "button",
+                    sub_type: "url",
+                    index: index.toString(),
+                    parameters: [
+                      {
+                        type: "text",
+                        text: button.example[0] || "default"
+                      }
+                    ]
+                  });
+                }
+              }
+              // PHONE_NUMBER buttons don't need parameters
+            });
+          }
+        }
+        
+        console.log('✅ Built components:', JSON.stringify(components, null, 2));
+        
+        if (components.length > 0) {
+          templateMessage.template.components = components;
+        }
+      } else {
+        console.warn('⚠️ Template not found or has no components:', templateName);
+      }
+    } catch (templateError) {
+      console.warn('⚠️ Could not fetch template details, using basic structure:', templateError.message);
+      
+      // Fallback: Add basic video header for multimedia templates
+      templateMessage.template.components = [
+        {
+          type: "header",
+          parameters: [
+            {
+              type: "video",
+              video: {
+                link: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
+              }
+            }
+          ]
+        }
+      ];
+    }
+
+    console.log('📤 Final template message:', JSON.stringify(templateMessage, null, 2));
+
+    const response = await axios.post(
+      `https://graph.facebook.com/v17.0/${process.env.FROM_PHONE_NUMBER_ID}/messages`,
+      templateMessage,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    console.log('✅ WhatsApp API Response:', response.data);
+    
+    // Mark the user as messaged
+    if (sourceDatabase) {
+      try {
+        const UserModel = await getDatabaseModel(sourceDatabase.config);
+        await UserModel.updateOne(
+          { whatsapp: phoneNumber },
+          { $set: { enviado: true } }
+        );
+      } catch (updateError) {
+        console.error('Error updating user after sending message:', updateError);
+        // Don't fail the request if the update fails, the message was sent successfully
+      }
+    }
+    
+    res.json({ 
+      success: true,
+      messageId: response.data.messages?.[0]?.id,
+      sourceDatabase: sourceDatabase?.key,
+      whatsappResponse: {
+        messageId: response.data.messages?.[0]?.id,
+        contacts: response.data.contacts,
+        messagingProduct: response.data.messaging_product
+      },
+      diagnostics: {
+        phoneNumber: phoneNumber,
+        templateName: templateName,
+        fromPhoneNumberId: process.env.FROM_PHONE_NUMBER_ID,
+        timestamp: new Date().toISOString(),
+        templateComponents: templateMessage.template.components ? templateMessage.template.components.length : 0,
+        finalMessage: templateMessage
+      }
+    });
+  } catch (error) {
+    console.error('Error sending template message:', error);
+    
+    // Extract specific WhatsApp error message
+    let errorMessage = 'Failed to send message';
+    let errorDetails = error.message;
+    
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error.message || errorMessage;
+      errorDetails = error.response.data.error;
+      
+      console.error('📱 WhatsApp API Error Details:', {
+        message: errorMessage,
+        details: errorDetails,
+        status: error.response.status,
+        data: error.response.data
+      });
+    } else if (error.response?.headers?.['www-authenticate']) {
+      // Extract error from www-authenticate header
+      const authHeader = error.response.headers['www-authenticate'];
+      const match = authHeader.match(/"([^"]*)"$/);
+      if (match) {
+        errorMessage = match[1];
+      }
+    }
+    
+    // Handle specific WhatsApp errors with helpful messages
+    if (errorMessage.includes('Parameter format does not match format in the created template')) {
+      errorMessage = `❌ Los parámetros de la plantilla "${templateName}" no coinciden con la estructura esperada.`;
+      errorDetails = {
+        originalError: errorMessage,
+        templateUsed: templateName,
+        solution: 'La plantilla requiere parámetros específicos (video, texto, botones)',
+        steps: [
+          '1. Verifica que la plantilla esté configurada correctamente',
+          '2. Revisa que los componentes multimedia estén disponibles',
+          '3. Confirma que los botones tengan la estructura correcta',
+          '4. Verifica que el formato de parámetros sea el esperado'
+        ],
+        templateStructure: 'La plantilla parece requerir: HEADER (video), BODY (texto), FOOTER (texto), BUTTONS (quick_reply)',
+        documentation: 'https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates'
+      };
+    } else if (errorMessage.includes('Template name does not exist in the translation')) {
+      errorMessage = `❌ La plantilla "${templateName}" no existe o no está aprobada en tu cuenta de WhatsApp Business.`;
+      errorDetails = {
+        originalError: errorMessage,
+        templateUsed: templateName,
+        solution: 'Verifica que la plantilla esté aprobada en Meta Business Manager',
+        steps: [
+          '1. Ve a Meta Business Manager > WhatsApp Manager',
+          '2. Selecciona "Message Templates"',
+          '3. Verifica que la plantilla esté en estado "APPROVED"',
+          '4. Si no existe, créala y espera aprobación'
+        ],
+        documentation: 'https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates'
+      };
+    } else if (errorMessage.includes('Hello World templates can only be sent from the Public Test Numbers')) {
+      errorMessage = 'La plantilla "hello_world" solo funciona con números de prueba. Necesitas crear una plantilla personalizada aprobada para tu número de producción.';
+      errorDetails = {
+        originalError: errorMessage,
+        solution: 'Ve a Meta Business Manager > WhatsApp Manager > Message Templates y crea una plantilla personalizada',
+        documentation: 'https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates'
+      };
+    }
+    
+    console.error('📱 WhatsApp API Error:', errorMessage);
+    
+    res.status(500).json({ 
+      success: false,
+      error: errorMessage,
+      details: errorDetails
+    });
+  }
+});
             
             if (bodyParams.length > 0) {
               components.push({
