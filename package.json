@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "node server/index.js",
-    "dev:all": "concurrently \"npm run dev\" \"npm run server\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
+    "docker:build": "docker build -t whatsapp-messenger .",
+    "docker:run": "docker run -p 5001:5001 --env-file .env whatsapp-messenger",
+    "docker:compose": "docker-compose up --build"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
