@@ -204,7 +204,7 @@ router.post('/send', async (req, res) => {
       template: {
         name: templateName,
         language: {
-          code: "es"
+          code: "Es"
         }
       }
     };
