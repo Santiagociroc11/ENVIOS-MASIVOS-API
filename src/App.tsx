@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, RefreshCw, Filter, CheckCircle2, ChevronDown, ChevronUp, Database, MessageSquare, Users, History, Settings } from 'lucide-react';
+import { Search, Send, RefreshCw, Database, MessageSquare, Users, History, Settings } from 'lucide-react';
 import DatabaseSelector from './components/DatabaseSelector';
 import TemplateSelector from './components/TemplateSelector';
 import UserList from './components/UserList';
 import SendingPanel from './components/SendingPanel';
 import SendingModal from './components/SendingModal';
 import CampaignHistory from './components/CampaignHistory';
+import AdvancedFilters from './components/AdvancedFilters';
 import { fetchTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign } from './api/services';
 import { Template, User } from './types';
 
@@ -14,6 +15,13 @@ interface SendingResult {
   success: boolean;
   error?: string;
   timestamp: number;
+}
+
+interface FilterCondition {
+  id: string;
+  field: 'estado' | 'medio' | 'ingreso' | 'enviado';
+  operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'not_contains';
+  value: string | number | boolean;
 }
 
 type TabType = 'send' | 'campaigns' | 'settings';
@@ -38,11 +46,7 @@ function App() {
   const [availableMedios, setAvailableMedios] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pagination, setPagination] = useState<any>(null);
-  const [showFilters, setShowFilters] = useState<boolean>(false);
-  const [filter, setFilter] = useState({
-    status: 'all',
-    paymentMethod: 'all'
-  });
+  const [advancedFilters, setAdvancedFilters] = useState<FilterCondition[]>([]);
 
   // Modal states
   const [showSendingModal, setShowSendingModal] = useState<boolean>(false);
@@ -100,20 +104,39 @@ function App() {
   useEffect(() => {
     let filtered = [...users];
     
+    // Apply search term
     if (searchTerm) {
       filtered = filtered.filter(user => 
         user.whatsapp.includes(searchTerm)
       );
     }
     
-    if (filter.status !== 'all') {
-      filtered = filtered.filter(user => user.estado === filter.status);
-    }
+    // Apply advanced filters
+    advancedFilters.forEach(filter => {
+      filtered = filtered.filter(user => {
+        const fieldValue = user[filter.field];
+        const filterValue = filter.value;
+        
+        switch (filter.operator) {
+          case 'equals':
+            return fieldValue === filterValue;
+          case 'not_equals':
+            return fieldValue !== filterValue;
+          case 'greater_than':
+            return Number(fieldValue) > Number(filterValue);
+          case 'less_than':
+            return Number(fieldValue) < Number(filterValue);
+          case 'contains':
+            return String(fieldValue).toLowerCase().includes(String(filterValue).toLowerCase());
+          case 'not_contains':
+            return !String(fieldValue).toLowerCase().includes(String(filterValue).toLowerCase());
+          default:
+            return true;
+        }
+      });
+    });
     
-    if (filter.paymentMethod !== 'all') {
-      filtered = filtered.filter(user => user.medio === filter.paymentMethod);
-    }
-    
+    // Apply sorting
     filtered = filtered.sort((a, b) => {
       const timeA = a.medio_at || 0;
       const timeB = b.medio_at || 0;
@@ -124,7 +147,7 @@ function App() {
     });
     
     setFilteredUsers(filtered);
-  }, [users, searchTerm, filter, sendingOrder]);
+  }, [users, searchTerm, advancedFilters, sendingOrder]);
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -492,7 +515,7 @@ function App() {
               </div>
 
               {/* Search and Filters */}
-              <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-y-0 md:space-x-4 mb-6">
+              <div className="flex flex-col space-y-4 mb-6">
                 <div className="relative flex-1">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <Search size={20} className="text-gray-400" />
@@ -505,77 +528,17 @@ function App() {
                     onChange={e => setSearchTerm(e.target.value)}
                   />
                 </div>
-                
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center px-6 py-4 text-sm font-medium rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    showFilters 
-                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-purple-500/25' 
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  <Filter size={16} className="mr-2" />
-                  Filtros
-                  {showFilters ? <ChevronUp size={16} className="ml-2" /> : <ChevronDown size={16} className="ml-2" />}
-                </button>
               </div>
 
-              {/* Filters Panel */}
-              {showFilters && (
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-gray-700 dark:to-gray-600 p-6 rounded-2xl mb-6 border border-purple-200 dark:border-gray-500 shadow-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                        Estado
-                      </label>
-                      <select
-                        value={filter.status}
-                        onChange={(e) => setFilter({...filter, status: e.target.value})}
-                        className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm"
-                      >
-                        <option value="all">Todos los Estados</option>
-                        {availableEstados.map((estado) => (
-                          <option key={estado} value={estado}>
-                            {estado}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                        Método de Pago
-                      </label>
-                      <select
-                        value={filter.paymentMethod}
-                        onChange={(e) => setFilter({...filter, paymentMethod: e.target.value})}
-                        className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm"
-                      >
-                        <option value="all">Todos los Métodos</option>
-                        {availableMedios.map((medio) => (
-                          <option key={medio} value={medio}>
-                            {medio}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                        Orden
-                      </label>
-                      <select
-                        value={sendingOrder}
-                        onChange={(e) => setSendingOrder(e.target.value as 'asc' | 'desc')}
-                        className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm"
-                      >
-                        <option value="desc">Más Recientes Primero</option>
-                        <option value="asc">Más Antiguos Primero</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Advanced Filters */}
+              <div className="mb-6">
+                <AdvancedFilters
+                  availableEstados={availableEstados}
+                  availableMedios={availableMedios}
+                  filters={advancedFilters}
+                  onFiltersChange={setAdvancedFilters}
+                />
+              </div>
 
               <SendingPanel 
                 quantity={quantity} 
