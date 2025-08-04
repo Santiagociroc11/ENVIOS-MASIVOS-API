@@ -203,7 +203,7 @@ router.post('/send', async (req, res) => {
       template: {
         name: templateName,
         language: {
-          code: template.language
+          code: "es" // Will be updated below with actual template language
         }
       }
     };
@@ -223,6 +223,9 @@ router.post('/send', async (req, res) => {
       const template = templatesResponse.data.data?.find(t => t.name === templateName);
       
       if (template && template.components) {
+        // Update language with actual template language
+        templateMessage.template.language.code = template.language;
+        
         const components = [];
         
         console.log('🎯 Processing template:', templateName);
@@ -383,17 +386,9 @@ router.post('/send', async (req, res) => {
     console.log(JSON.stringify(templateMessage, null, 2));
     console.log('==========================================');
 
-    // Use correct API version v22.0
-    const correctApiUrl = `https://graph.facebook.com/v22.0/${process.env.FROM_PHONE_NUMBER_ID}/messages`;
-    
-    console.log('🔄 === USING CORRECT API VERSION ===');
-    console.log('📍 Correct URL:', correctApiUrl);
-    console.log('🌍 Template Language:', template.language);
-    console.log('📋 Template Name:', template.name);
-    console.log('=====================================');
 
     const response = await axios.post(
-      correctApiUrl,
+      apiUrl,
       templateMessage,
       { headers }
     );
