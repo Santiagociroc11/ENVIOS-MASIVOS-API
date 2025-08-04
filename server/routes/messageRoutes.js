@@ -136,7 +136,21 @@ router.post('/send', async (req, res) => {
     }
     
     // Handle specific WhatsApp errors with helpful messages
-    if (errorMessage.includes('Hello World templates can only be sent from the Public Test Numbers')) {
+    if (errorMessage.includes('Template name does not exist in the translation')) {
+      errorMessage = `❌ La plantilla "${templateName}" no existe o no está aprobada en tu cuenta de WhatsApp Business.`;
+      errorDetails = {
+        originalError: errorMessage,
+        templateUsed: templateName,
+        solution: 'Verifica que la plantilla esté aprobada en Meta Business Manager',
+        steps: [
+          '1. Ve a Meta Business Manager > WhatsApp Manager',
+          '2. Selecciona "Message Templates"',
+          '3. Verifica que la plantilla esté en estado "APPROVED"',
+          '4. Si no existe, créala y espera aprobación'
+        ],
+        documentation: 'https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates'
+      };
+    } else if (errorMessage.includes('Hello World templates can only be sent from the Public Test Numbers')) {
       errorMessage = 'La plantilla "hello_world" solo funciona con números de prueba. Necesitas crear una plantilla personalizada aprobada para tu número de producción.';
       errorDetails = {
         originalError: errorMessage,
