@@ -1,7 +1,8 @@
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import Ebook from '../models/userModel.js';
+import { getDatabase } from '../config/databases.js';
+import { getDatabaseModel } from '../models/dynamicUserModel.js';
 
 dotenv.config();
 
@@ -10,12 +11,23 @@ const router = express.Router();
 // Send template message
 router.post('/send', async (req, res) => {
   try {
-    const { phoneNumber, templateName } = req.body;
+    const { phoneNumber, templateName, database } = req.body;
+    
+    // Get database configuration
+    const dbKey = database || 'bot-win-2';
+    const dbConfig = getDatabase(dbKey);
+    
+    if (!dbConfig) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Database not found' 
+      });
+    }
     
     console.log('🔍 Debug - Variables de entorno en messageRoutes:');
     console.log('META_ACCESS_TOKEN:', process.env.META_ACCESS_TOKEN ? 'Configurado' : 'NO ENCONTRADO');
     console.log('FROM_PHONE_NUMBER_ID:', process.env.FROM_PHONE_NUMBER_ID ? 'Configurado' : 'NO ENCONTRADO');
-    console.log('📱 Enviando mensaje a:', phoneNumber, 'con plantilla:', templateName);
+    console.log('📱 Enviando mensaje a:', phoneNumber, 'con plantilla:', templateName, 'desde DB:', dbConfig.name);
     
     if (!phoneNumber || !templateName) {
       return res.status(400).json({ 
@@ -34,8 +46,11 @@ router.post('/send', async (req, res) => {
       });
     }
     
+    // Get the appropriate model for this database
+    const UserModel = await getDatabaseModel(dbConfig);
+    
     // Get the user to make sure they exist
-    const user = await Ebook.findOne({ whatsapp: phoneNumber });
+    const user = await UserModel.findOne({ whatsapp: phoneNumber });
     
     if (!user) {
       return res.status(404).json({ 
@@ -68,7 +83,7 @@ router.post('/send', async (req, res) => {
     );
     
     // Mark the user as messaged
-    await Ebook.updateOne(
+    await UserModel.updateOne(
       { whatsapp: phoneNumber },
       { $set: { enviado: true } }
     );

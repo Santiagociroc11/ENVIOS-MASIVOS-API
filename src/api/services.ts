@@ -3,6 +3,16 @@ import { Template, User } from '../types';
 
 const API_BASE_URL = '/api';
 
+export const fetchDatabases = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/databases`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching databases:', error);
+    return [];
+  }
+};
+
 export const fetchTemplates = async (): Promise<Template[]> => {
   try {
     const response = await axios.get(`${API_BASE_URL}/templates`);
@@ -13,21 +23,23 @@ export const fetchTemplates = async (): Promise<Template[]> => {
   }
 };
 
-export const fetchFilteredUsers = async (): Promise<User[]> => {
+export const fetchFilteredUsers = async (database?: string): Promise<{ users: User[]; database: string; collection: string; count: number }> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/users/pending`);
+    const params = database ? `?database=${database}` : '';
+    const response = await axios.get(`${API_BASE_URL}/users/pending${params}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching users:', error);
-    return [];
+    return { users: [], database: '', collection: '', count: 0 };
   }
 };
 
-export const sendTemplateMessage = async (phoneNumber: string, templateName: string): Promise<{ success: boolean; error?: string }> => {
+export const sendTemplateMessage = async (phoneNumber: string, templateName: string, database?: string): Promise<{ success: boolean; error?: string }> => {
   try {
     const response = await axios.post(`${API_BASE_URL}/messages/send`, {
       phoneNumber,
-      templateName
+      templateName,
+      database
     });
     return { success: response.data.success };
   } catch (error: any) {
@@ -49,10 +61,11 @@ export const sendTemplateMessage = async (phoneNumber: string, templateName: str
   }
 };
 
-export const markMessageSent = async (phoneNumber: string): Promise<boolean> => {
+export const markMessageSent = async (phoneNumber: string, database?: string): Promise<boolean> => {
   try {
     const response = await axios.post(`${API_BASE_URL}/users/mark-sent`, {
-      phoneNumber
+      phoneNumber,
+      database
     });
     return response.data.success;
   } catch (error) {

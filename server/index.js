@@ -13,12 +13,7 @@ const __dirname = path.dirname(__filename);
 import templateRoutes from './routes/templateRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
-
-const username = "chatbot";
-const password = "Jsdrevolution123.";
-const cluster = "cluster0.mzz8o50.mongodb.net";
-const dbName = "bot-WIN+2";
-const dbURI = `mongodb+srv://${username}:${password}@${cluster}/${dbName}?retryWrites=true&w=majority`;
+import databaseRoutes from './routes/databaseRoutes.js';
 
 dotenv.config();
 
@@ -50,24 +45,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Connect to MongoDB with increased timeout and additional options
-mongoose
-  .connect(dbURI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 30000,
-    socketTimeoutMS: 45000,
-    connectTimeoutMS: 30000,
-  })
-  .then(() => console.log("Conexión exitosa a MongoDB Atlas"))
-  .catch((err) => console.error("Error conectando a MongoDB Atlas:", err));
-
-// Add error handler for MongoDB connection
-mongoose.connection.on('error', (err) => {
-  console.error('MongoDB connection error:', err);
-});
-
 // API Routes
+app.use('/api/databases', databaseRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
@@ -79,6 +58,7 @@ app.use('/api/*', (req, res) => {
     path: req.path,
     method: req.method
   });
+      databases: "/api/databases",
 });
 
 // Serve static files (frontend)
@@ -114,4 +94,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
+  console.log(`🗄️ Databases: http://localhost:${PORT}/api/databases`);
 });

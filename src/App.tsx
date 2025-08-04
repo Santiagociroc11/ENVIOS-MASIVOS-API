@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Send, RefreshCw, Filter, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import DatabaseSelector from './components/DatabaseSelector';
 import TemplateSelector from './components/TemplateSelector';
 import UserList from './components/UserList';
 import SendingPanel from './components/SendingPanel';
@@ -15,6 +16,8 @@ interface SendingResult {
 }
 
 function App() {
+  const [selectedDatabase, setSelectedDatabase] = useState<string>('bot-win-2');
+  const [databaseInfo, setDatabaseInfo] = useState<any>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -54,9 +57,16 @@ function App() {
         const templatesData = await fetchTemplates();
         setTemplates(templatesData);
         
-        const usersData = await fetchFilteredUsers();
-        setUsers(usersData);
-        setFilteredUsers(usersData);
+        if (selectedDatabase) {
+          const response = await fetchFilteredUsers(selectedDatabase);
+          setUsers(response.users);
+          setFilteredUsers(response.users);
+          setDatabaseInfo({
+            name: response.database,
+            collection: response.collection,
+            count: response.count
+          });
+        }
       } catch (error) {
         console.error('Error loading initial data:', error);
       } finally {
@@ -65,7 +75,7 @@ function App() {
     };
 
     loadInitialData();
-  }, []);
+  }, [selectedDatabase]);
 
   // Filter users based on search term and filters
   useEffect(() => {
@@ -104,9 +114,16 @@ function App() {
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      const usersData = await fetchFilteredUsers();
-      setUsers(usersData);
-      setFilteredUsers(usersData);
+      if (selectedDatabase) {
+        const response = await fetchFilteredUsers(selectedDatabase);
+        setUsers(response.users);
+        setFilteredUsers(response.users);
+        setDatabaseInfo({
+          name: response.database,
+          collection: response.collection,
+          count: response.count
+        });
+      }
     } catch (error) {
       console.error('Error refreshing users:', error);
     } finally {
@@ -186,7 +203,7 @@ function App() {
       setCurrentSendingIndex(i + 1);
       
       try {
-        const result = await sendTemplateMessage(user.whatsapp, selectedTemplate.name);
+        const result = await sendTemplateMessage(user.whatsapp, selectedTemplate.name, selectedDatabase);
         
         const sendingResult: SendingResult = {
           phoneNumber: user.whatsapp,
@@ -202,7 +219,7 @@ function App() {
           localSuccessCount++;
           setSuccessCount(localSuccessCount);
           // Mark as sent in the database
-          await markMessageSent(user.whatsapp);
+          await markMessageSent(user.whatsapp, selectedDatabase);
         } else {
           localErrorCount++;
           setErrorCount(localErrorCount);
@@ -280,6 +297,11 @@ function App() {
               </h1>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 max-w-2xl">
                 🚀 Envía mensajes personalizados a usuarios que solicitaron pago pero no completaron su compra
+                {databaseInfo && (
+                  <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg text-xs font-medium">
+                    📊 {databaseInfo.name} ({databaseInfo.count} usuarios)
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -287,6 +309,21 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 mb-8 border border-gray-200/20">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+              <Search className="w-4 h-4 text-white" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">🗄️ Selección de Base de Datos</h2>
+          </div>
+          
+          <DatabaseSelector 
+            selectedDatabase={selectedDatabase}
+            onSelectDatabase={setSelectedDatabase}
+            onDatabaseChange={setDatabaseInfo}
+          />
+        </div>
+
         <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 mb-8 border border-gray-200/20">
           <div className="flex items-center space-x-3 mb-6">
             <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
