@@ -101,7 +101,7 @@ const DatabaseSelector: React.FC<DatabaseSelectorProps> = ({
     const isAllSelected = allKeys.every(key => selectedDatabases.includes(key));
     
     if (isAllSelected) {
-      onSelectDatabases([]);
+      onSelectDatabases(['bot-win-2']); // Keep at least one selected
     } else {
       onSelectDatabases(allKeys);
     }

@@ -28,7 +28,7 @@ type TabType = 'send' | 'campaigns' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('send');
-  const [selectedDatabases, setSelectedDatabases] = useState<string[]>(['bot-win-2']);
+  const [selectedDatabases, setSelectedDatabases] = useState<string[]>(['bot-win', 'bot-win-2', 'bot-win-3', 'bot-win-4']);
   const [databaseInfo, setDatabaseInfo] = useState<any>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
