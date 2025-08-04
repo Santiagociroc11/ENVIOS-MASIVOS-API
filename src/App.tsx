@@ -410,10 +410,11 @@ function App() {
                       className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm appearance-none"
                     >
                       <option value="all">✨ Todos los Estados</option>
-                      <option value="medio-enviado">📤 Medio Enviado</option>
-                      <option value="nequi">💜 Nequi</option>
-                      <option value="bancolombia">🔵 Bancolombia</option>
-                      <option value="daviplata">🟡 Daviplata</option>
+                      {availableEstados.map((estado) => (
+                        <option key={estado} value={estado}>
+                          📊 {estado}
+                        </option>
+                      ))}
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                       <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -432,11 +433,11 @@ function App() {
                       className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm appearance-none"
                     >
                       <option value="all">🌟 Todos los Métodos</option>
-                      <option value="nequi">💜 Nequi</option>
-                      <option value="bancolombia">🔵 Bancolombia</option>
-                      <option value="daviplata">🟡 Daviplata</option>
-                      <option value="transfiya">🟢 Transfiya</option>
-                      <option value="efectivo">💵 Efectivo</option>
+                      {availableMedios.map((medio) => (
+                        <option key={medio} value={medio}>
+                          💳 {medio}
+                        </option>
+                      ))}
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                       <ChevronDown className="w-4 h-4 text-gray-400" />

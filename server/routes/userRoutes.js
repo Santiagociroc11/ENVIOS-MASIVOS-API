@@ -4,6 +4,104 @@ import { getDatabaseModel } from '../models/dynamicUserModel.js';
 
 const router = express.Router();
 
+// Get all unique estados from all selected databases
+router.get('/estados', async (req, res) => {
+  try {
+    const databasesParam = req.query.databases || 'bot-win-2';
+    const dbKeys = databasesParam.split(',').filter(key => key.trim());
+    
+    let allEstados = new Set();
+    
+    for (const dbKey of dbKeys) {
+      const dbConfig = getDatabase(dbKey);
+      
+      if (!dbConfig) {
+        console.warn(`Database ${dbKey} not found, skipping...`);
+        continue;
+      }
+      
+      try {
+        const UserModel = await getDatabaseModel(dbConfig);
+        
+        // Get distinct estados from this database
+        const estados = await UserModel.distinct('estado');
+        estados.forEach(estado => {
+          if (estado && estado.trim()) {
+            allEstados.add(estado);
+          }
+        });
+        
+      } catch (dbError) {
+        console.error(`Error fetching estados from database ${dbKey}:`, dbError);
+      }
+    }
+    
+    // Convert Set to sorted array
+    const estadosArray = Array.from(allEstados).sort();
+    
+    res.json({
+      estados: estadosArray,
+      count: estadosArray.length
+    });
+    
+  } catch (error) {
+    console.error('Error fetching estados:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch estados',
+      details: error.message 
+    });
+  }
+});
+
+// Get all unique payment methods from all selected databases
+router.get('/medios', async (req, res) => {
+  try {
+    const databasesParam = req.query.databases || 'bot-win-2';
+    const dbKeys = databasesParam.split(',').filter(key => key.trim());
+    
+    let allMedios = new Set();
+    
+    for (const dbKey of dbKeys) {
+      const dbConfig = getDatabase(dbKey);
+      
+      if (!dbConfig) {
+        console.warn(`Database ${dbKey} not found, skipping...`);
+        continue;
+      }
+      
+      try {
+        const UserModel = await getDatabaseModel(dbConfig);
+        
+        // Get distinct medios from this database
+        const medios = await UserModel.distinct('medio');
+        medios.forEach(medio => {
+          if (medio && medio.trim()) {
+            allMedios.add(medio);
+          }
+        });
+        
+      } catch (dbError) {
+        console.error(`Error fetching medios from database ${dbKey}:`, dbError);
+      }
+    }
+    
+    // Convert Set to sorted array
+    const mediosArray = Array.from(allMedios).sort();
+    
+    res.json({
+      medios: mediosArray,
+      count: mediosArray.length
+    });
+    
+  } catch (error) {
+    console.error('Error fetching medios:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch medios',
+      details: error.message 
+    });
+  }
+});
+
 // Get users who requested payment but didn't complete purchase
 router.get('/pending', async (req, res) => {
   try {
@@ -35,13 +133,8 @@ router.get('/pending', async (req, res) => {
         // Get the appropriate model for this database
         const UserModel = await getDatabaseModel(dbConfig);
         
-        const users = await UserModel.find({
-          $and: [
-            {
-              $or: [{ estado: { $nin: ["bienvenida", "pagado", "respondido", "vsl"] } }],
-            }
-          ]
-        })
+        // Get ALL users without filtering by estado
+        const users = await UserModel.find({})
         .lean() // Use lean() for better performance
         .sort({ medio_at: -1 })
         .exec(); // Use exec() to ensure proper promise handling

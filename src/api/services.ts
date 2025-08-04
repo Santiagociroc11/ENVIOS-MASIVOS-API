@@ -34,6 +34,28 @@ export const fetchFilteredUsers = async (databases?: string[]): Promise<{ users:
   }
 };
 
+export const fetchEstados = async (databases?: string[]): Promise<string[]> => {
+  try {
+    const params = databases && databases.length > 0 ? `?databases=${databases.join(',')}` : '';
+    const response = await axios.get(`${API_BASE_URL}/users/estados${params}`);
+    return response.data.estados || [];
+  } catch (error) {
+    console.error('Error fetching estados:', error);
+    return [];
+  }
+};
+
+export const fetchMedios = async (databases?: string[]): Promise<string[]> => {
+  try {
+    const params = databases && databases.length > 0 ? `?databases=${databases.join(',')}` : '';
+    const response = await axios.get(`${API_BASE_URL}/users/medios${params}`);
+    return response.data.medios || [];
+  } catch (error) {
+    console.error('Error fetching medios:', error);
+    return [];
+  }
+};
+
 export const sendTemplateMessage = async (phoneNumber: string, templateName: string, databases?: string[]): Promise<{ success: boolean; error?: string }> => {
   try {
     const response = await axios.post(`${API_BASE_URL}/messages/send`, {
