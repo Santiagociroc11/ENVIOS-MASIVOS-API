@@ -29,11 +29,19 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
   const handleTestSend = async () => {
     if (!selectedTemplate || !testNumber.trim()) return;
 
+    console.log('🧪 Iniciando Envío de Prueba...');
+    console.log('📱 Número:', testNumber.trim());
+    console.log('📋 Plantilla:', selectedTemplate.name);
+    console.log('🗄️ Bases de Datos:', selectedDatabases);
+    console.log('🎯 Template Completo:', selectedTemplate);
+
     setIsSending(true);
     setTestResult(null);
 
     try {
       const result = await sendTemplateMessage(testNumber.trim(), selectedTemplate.name, selectedDatabases);
+      
+      console.log('📤 Resultado del Envío:', result);
       
       setTestResult({
         success: result.success,
@@ -46,6 +54,7 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
         whatsappResponse: result.whatsappResponse
       });
     } catch (error) {
+      console.error('❌ Error en Envío de Prueba:', error);
       setTestResult({
         success: false,
         message: `❌ Error de conexión: ${error}`,

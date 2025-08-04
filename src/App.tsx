@@ -217,6 +217,23 @@ function App() {
     }
   };
 
+  // Log all templates when loaded
+  React.useEffect(() => {
+    if (templates.length > 0) {
+      console.log('📋 Todas las Plantillas Cargadas:', templates);
+      console.log('📊 Total de Plantillas:', templates.length);
+      templates.forEach((template, index) => {
+        console.log(`📱 Plantilla ${index + 1}:`, {
+          name: template.name,
+          status: template.status,
+          category: template.category,
+          language: template.language,
+          components: template.components?.length || 0
+        });
+      });
+    }
+  }, [templates]);
+
   const handleSelectAll = () => {
     if (selectedUsers.length === filteredUsers.slice(0, quantity).length) {
       setSelectedUsers([]);

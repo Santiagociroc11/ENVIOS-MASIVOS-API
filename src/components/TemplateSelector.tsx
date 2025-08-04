@@ -14,6 +14,19 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
   onSelectTemplate,
   loading
 }) => {
+  // Log template object when selected
+  React.useEffect(() => {
+    if (selectedTemplate) {
+      console.log('🎯 Template Seleccionado:', selectedTemplate);
+      console.log('📋 Nombre:', selectedTemplate.name);
+      console.log('🌍 Idioma:', selectedTemplate.language);
+      console.log('⚡ Estado:', selectedTemplate.status);
+      console.log('🏷️ Categoría:', selectedTemplate.category);
+      console.log('🔧 Componentes:', selectedTemplate.components);
+      console.log('📄 Objeto Completo:', JSON.stringify(selectedTemplate, null, 2));
+    }
+  }, [selectedTemplate]);
+
   if (loading) {
     return (
       <div className="animate-pulse space-y-4">
