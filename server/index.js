@@ -81,28 +81,23 @@ app.use('/api/*', (req, res) => {
   });
 });
 
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../dist')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../dist', 'index.html'));
-  });
-} else {
-  // In development, handle root route
-  app.get('/', (req, res) => {
-    res.json({ 
-      message: 'WhatsApp Template Messenger API',
-      version: '1.0.0',
-      endpoints: {
-        health: '/health',
-        templates: '/api/templates',
-        users: '/api/users/pending',
-        messages: '/api/messages/send'
-      }
+// Serve static files (frontend)
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  // If it's an API route that wasn't found, don't serve the frontend
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ 
+      error: 'API endpoint not found',
+      path: req.path,
+      method: req.method
     });
-  });
-}
+  }
+  
+  // For all other routes, serve the React app
+  res.sendFile(path.resolve(__dirname, '../dist', 'index.html'));
+});
 
 // Global error handler
 app.use((err, req, res, next) => {
