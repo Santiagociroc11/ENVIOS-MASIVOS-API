@@ -25,6 +25,7 @@ function App() {
   const [loading, setLoading] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(100);
+  const [loadingAll, setLoadingAll] = useState<boolean>(false);
   const [sendingOrder, setSendingOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isSending, setIsSending] = useState<boolean>(false);
@@ -57,12 +58,15 @@ function App() {
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
+      const shouldLoadAll = quantity === -1;
+      setLoadingAll(shouldLoadAll);
+      
       try {
         const templatesData = await fetchTemplates();
         setTemplates(templatesData);
         
         if (selectedDatabases.length > 0) {
-          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity);
+          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll);
           setUsers(response.users);
           setFilteredUsers(response.users);
           setPagination(response.pagination);
@@ -82,6 +86,7 @@ function App() {
         console.error('Error loading initial data:', error);
       } finally {
         setLoading(false);
+        setLoadingAll(false);
       }
     };
 
@@ -124,9 +129,12 @@ function App() {
 
   const handleRefresh = async () => {
     setLoading(true);
+    const shouldLoadAll = quantity === -1;
+    setLoadingAll(shouldLoadAll);
+    
     try {
       if (selectedDatabases.length > 0) {
-        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity);
+        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll);
         setUsers(response.users);
         setFilteredUsers(response.users);
         setPagination(response.pagination);
@@ -146,6 +154,7 @@ function App() {
       console.error('Error refreshing users:', error);
     } finally {
       setLoading(false);
+      setLoadingAll(false);
     }
   };
 
@@ -519,7 +528,7 @@ function App() {
           />
           
           {/* Load More Button */}
-          {pagination?.hasMore && (
+          {pagination?.hasMore && !loadingAll && quantity !== -1 && (
             <div className="mt-6 text-center">
               <button
                 onClick={handleLoadMore}
@@ -528,6 +537,25 @@ function App() {
               >
                 {loading ? '⏳ Cargando...' : `📄 Cargar Más Usuarios (${pagination.total - users.length} restantes)`}
               </button>
+            </div>
+          )}
+          
+          {/* Loading All Indicator */}
+          {loadingAll && (
+            <div className="mt-6 text-center">
+              <div className="inline-flex items-center px-6 py-3 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+                <span className="font-medium">🌟 Cargando TODOS los usuarios... Esto puede tomar un momento</span>
+              </div>
+            </div>
+          )}
+          
+          {/* All Users Loaded Indicator */}
+          {pagination?.loadedAll && (
+            <div className="mt-6 text-center">
+              <div className="inline-flex items-center px-6 py-3 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-lg">
+                <span className="font-medium">✅ Se cargaron TODOS los usuarios ({users.length} total)</span>
+              </div>
             </div>
           )}
         </div>

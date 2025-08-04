@@ -23,17 +23,22 @@ export const fetchTemplates = async (): Promise<Template[]> => {
   }
 };
 
-export const fetchFilteredUsers = async (databases?: string[], page: number = 1, limit: number = 50): Promise<{ users: User[]; database: string; collection: string; count: number; pagination?: any }> => {
+export const fetchFilteredUsers = async (databases?: string[], page: number = 1, limit: number = 50, loadAll: boolean = false): Promise<{ users: User[]; database: string; collection: string; count: number; pagination?: any }> => {
   try {
     const params = new URLSearchParams();
     if (databases && databases.length > 0) {
       params.append('databases', databases.join(','));
     }
-    params.append('page', page.toString());
-    params.append('limit', limit.toString());
+    
+    if (loadAll) {
+      params.append('loadAll', 'true');
+    } else {
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+    }
     
     const url = `${API_BASE_URL}/users/pending?${params.toString()}`;
-    console.log('🔗 Fetching users from:', url);
+    console.log(`🔗 Fetching ${loadAll ? 'ALL' : limit} users from:`, url);
     
     const response = await axios.get(url);
     return response.data;

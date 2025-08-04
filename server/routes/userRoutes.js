@@ -105,10 +105,13 @@ router.get('/medios', async (req, res) => {
 // Get users who requested payment but didn't complete purchase
 router.get('/pending', async (req, res) => {
   try {
-    // Get pagination parameters
+    // Check if user wants ALL users
+    const loadAll = req.query.loadAll === 'true';
+    
+    // Get pagination parameters (only if not loading all)
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 100, 5000); // Max 5000 per request
-    const skip = (page - 1) * limit;
+    const limit = loadAll ? 0 : Math.min(parseInt(req.query.limit) || 100, 5000);
+    const skip = loadAll ? 0 : (page - 1) * limit;
     
     // Get database keys from query parameter (can be multiple, comma-separated)
     const databasesParam = req.query.databases || 'bot-win-2';
@@ -138,16 +141,20 @@ router.get('/pending', async (req, res) => {
         // Get the appropriate model for this database
         const UserModel = await getDatabaseModel(dbConfig);
         
-        // Get users with pagination and basic filtering for performance
-        const users = await UserModel.find({
+        // Build query
+        let query = UserModel.find({
           whatsapp: { $exists: true, $ne: null, $ne: "" }
         })
         .select('whatsapp estado medio medio_at enviado _id') // Only select needed fields
         .lean() // Use lean() for better performance
-        .sort({ medio_at: -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec();
+        .sort({ medio_at: -1 });
+        
+        // Apply pagination only if not loading all
+        if (!loadAll) {
+          query = query.skip(skip).limit(limit);
+        }
+        
+        const users = await query.exec();
         
         // Get total count for this database (for pagination info)
         const totalCount = await UserModel.countDocuments({
@@ -180,9 +187,10 @@ router.get('/pending', async (req, res) => {
       users: allUsers,
       pagination: {
         page,
-        limit,
+        limit: loadAll ? allUsers.length : limit,
         total: combinedInfo.totalCount,
-        hasMore: allUsers.length === limit
+        hasMore: !loadAll && allUsers.length === limit,
+        loadedAll: loadAll
       },
       database: dbKeys.length === 1 ? combinedInfo.databases[0] : `${dbKeys.length} bases combinadas`,
       collection: combinedInfo.collections.join(', '),
