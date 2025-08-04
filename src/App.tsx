@@ -5,7 +5,7 @@ import TemplateSelector from './components/TemplateSelector';
 import UserList from './components/UserList';
 import SendingPanel from './components/SendingPanel';
 import SendingModal from './components/SendingModal';
-import { fetchTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent } from './api/services';
+import { fetchTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios } from './api/services';
 import { Template, User } from './types';
 
 interface SendingResult {
