@@ -8,6 +8,114 @@ dotenv.config();
 
 const router = express.Router();
 
+// Webhook endpoint for WhatsApp status updates
+router.get('/webhook', (req, res) => {
+  // Verify webhook (required by Meta)
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  
+  // Check if a token and mode were sent
+  if (mode && token) {
+    // Check the mode and token sent are correct
+    if (mode === 'subscribe' && token === process.env.WEBHOOK_VERIFY_TOKEN || 'whatsapp_webhook_token') {
+      // Respond with 200 OK and challenge token from the request
+      console.log('✅ Webhook verified successfully!');
+      res.status(200).send(challenge);
+    } else {
+      // Responds with '403 Forbidden' if verify tokens do not match
+      res.sendStatus(403);
+    }
+  }
+});
+
+// Webhook endpoint for receiving status updates
+router.post('/webhook', (req, res) => {
+  try {
+    const body = req.body;
+    
+    // Check if this is a WhatsApp status update
+    if (body.object === 'whatsapp_business_account') {
+      body.entry?.forEach(entry => {
+        entry.changes?.forEach(change => {
+          if (change.field === 'messages') {
+            const value = change.value;
+            
+            // Handle message status updates
+            if (value.statuses) {
+              value.statuses.forEach(status => {
+                console.log('📱 Message Status Update:', {
+                  messageId: status.id,
+                  status: status.status,
+                  timestamp: status.timestamp,
+                  recipientId: status.recipient_id,
+                  errors: status.errors
+                });
+                
+                // Here you could update your database with delivery status
+                // updateMessageStatus(status.id, status.status);
+              });
+            }
+            
+            // Handle incoming messages (replies)
+            if (value.messages) {
+              value.messages.forEach(message => {
+                console.log('📨 Incoming Message:', {
+                  from: message.from,
+                  messageId: message.id,
+                  timestamp: message.timestamp,
+                  type: message.type,
+                  text: message.text?.body
+                });
+              });
+            }
+          }
+        });
+      });
+    }
+    
+    res.status(200).send('EVENT_RECEIVED');
+  } catch (error) {
+    console.error('❌ Webhook error:', error);
+    res.status(500).send('ERROR');
+  }
+});
+
+// Get message delivery status
+router.get('/status/:messageId', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    
+    if (!messageId) {
+      return res.status(400).json({ error: 'Message ID is required' });
+    }
+    
+    // Try to get message status from WhatsApp API
+    const response = await axios.get(
+      `https://graph.facebook.com/v17.0/${messageId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`
+        }
+      }
+    );
+    
+    res.json({
+      success: true,
+      messageId: messageId,
+      status: response.data
+    });
+    
+  } catch (error) {
+    console.error('Error getting message status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get message status',
+      details: error.response?.data || error.message
+    });
+  }
+});
+
 // Send template message
 router.post('/send', async (req, res) => {
   try {
@@ -282,7 +390,19 @@ router.post('/send', async (req, res) => {
     res.json({ 
       success: true,
       messageId: response.data.messages?.[0]?.id,
-      sourceDatabase: sourceDatabase?.key
+      sourceDatabase: sourceDatabase?.key,
+      whatsappResponse: {
+        messageId: response.data.messages?.[0]?.id,
+        contacts: response.data.contacts,
+        messagingProduct: response.data.messaging_product
+      },
+      diagnostics: {
+        phoneNumber: phoneNumber,
+        templateName: templateName,
+        fromPhoneNumberId: process.env.FROM_PHONE_NUMBER_ID,
+        timestamp: new Date().toISOString(),
+        templateComponents: templateMessage.template.components ? templateMessage.template.components.length : 0
+      }
     });
   } catch (error) {
     console.error('Error sending template message:', error);

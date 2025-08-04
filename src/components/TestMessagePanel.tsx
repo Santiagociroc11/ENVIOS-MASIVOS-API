@@ -8,13 +8,23 @@ interface TestMessagePanelProps {
   selectedDatabases: string[];
 }
 
+interface TestResult {
+  success: boolean;
+  message: string;
+  timestamp: Date;
+  messageId?: string;
+  diagnostics?: any;
+  whatsappResponse?: any;
+}
+
 const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
   selectedTemplate,
   selectedDatabases
 }) => {
   const [testNumber, setTestNumber] = useState<string>('');
   const [isSending, setIsSending] = useState<boolean>(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string; timestamp: Date } | null>(null);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState<boolean>(false);
 
   const handleTestSend = async () => {
     if (!selectedTemplate || !testNumber.trim()) return;
@@ -28,18 +38,44 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
       setTestResult({
         success: result.success,
         message: result.success 
-          ? '✅ Mensaje de prueba enviado exitosamente'
+          ? `✅ Mensaje enviado a WhatsApp API (ID: ${result.messageId?.slice(-8) || 'N/A'})`
           : `❌ Error: ${result.error}`,
-        timestamp: new Date()
+        timestamp: new Date(),
+        messageId: result.messageId,
+        diagnostics: result.diagnostics,
+        whatsappResponse: result.whatsappResponse
       });
     } catch (error) {
       setTestResult({
         success: false,
         message: `❌ Error de conexión: ${error}`,
-        timestamp: new Date()
+        timestamp: new Date(),
+        diagnostics: null
       });
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const checkMessageStatus = async () => {
+    if (!testResult?.messageId) return;
+    
+    setCheckingStatus(true);
+    try {
+      const response = await fetch(`/api/messages/status/${testResult.messageId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('📱 Message Status:', data.status);
+        alert(`Estado del mensaje: ${JSON.stringify(data.status, null, 2)}`);
+      } else {
+        alert(`Error al verificar estado: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error checking status:', error);
+      alert('Error al verificar el estado del mensaje');
+    } finally {
+      setCheckingStatus(false);
     }
   };
 
