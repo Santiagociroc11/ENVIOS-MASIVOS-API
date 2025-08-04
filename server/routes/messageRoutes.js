@@ -89,22 +89,119 @@ router.post('/send', async (req, res) => {
       }
     };
 
-    // Add components with parameters if template requires them
-    // This handles multimedia templates (header images/videos/documents)
-    if (templateName !== 'hello_world') {
-      templateMessage.template.components = [
+    // Get template information to build proper components
+    try {
+      // Fetch template details to understand its structure
+      const templateResponse = await axios.get(
+        `https://graph.facebook.com/v17.0/${process.env.WHATSAPP_BUSINESS_ACCOUNT_ID}/message_templates?name=${templateName}`,
         {
-          type: "header",
-          parameters: [
-            {
-              type: "image",
-              image: {
-                link: "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800"
+          headers: {
+            Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`
+          }
+        }
+      );
+      
+      const template = templateResponse.data.data?.[0];
+      
+      if (template && template.components) {
+        const components = [];
+        
+        // Process each component from the template
+        for (const component of template.components) {
+          if (component.type === 'HEADER') {
+            // Handle different header types
+            if (component.format === 'IMAGE') {
+              components.push({
+                type: "header",
+                parameters: [
+                  {
+                    type: "image",
+                    image: {
+                      link: "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800"
+                    }
+                  }
+                ]
+              });
+            } else if (component.format === 'VIDEO') {
+              components.push({
+                type: "header",
+                parameters: [
+                  {
+                    type: "video",
+                    video: {
+                      link: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
+                    }
+                  }
+                ]
+              });
+            } else if (component.format === 'DOCUMENT') {
+              components.push({
+                type: "header",
+                parameters: [
+                  {
+                    type: "document",
+                    document: {
+                      link: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+                      filename: "documento.pdf"
+                    }
+                  }
+                ]
+              });
+            } else if (component.format === 'TEXT' && component.example?.header_text) {
+              // Handle text headers with variables
+              const headerParams = component.example.header_text.map(text => ({
+                type: "text",
+                text: text
+              }));
+              
+              if (headerParams.length > 0) {
+                components.push({
+                  type: "header",
+                  parameters: headerParams
+                });
               }
             }
-          ]
+          } else if (component.type === 'BODY' && component.example?.body_text) {
+            // Handle body parameters
+            const bodyParams = component.example.body_text[0].map(text => ({
+              type: "text",
+              text: text
+            }));
+            
+            if (bodyParams.length > 0) {
+              components.push({
+                type: "body",
+                parameters: bodyParams
+              });
+            }
+          }
+          // Note: FOOTER and BUTTONS don't typically need parameters
+          // They are static components defined in the template
         }
-      ];
+        
+        if (components.length > 0) {
+          templateMessage.template.components = components;
+        }
+      }
+    } catch (templateError) {
+      console.warn('Could not fetch template details, using basic structure:', templateError.message);
+      
+      // Fallback: Add basic image header for non-hello_world templates
+      if (templateName !== 'hello_world') {
+        templateMessage.template.components = [
+          {
+            type: "header",
+            parameters: [
+              {
+                type: "image",
+                image: {
+                  link: "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800"
+                }
+              }
+            ]
+          }
+        ];
+      }
     }
 
     const response = await axios.post(

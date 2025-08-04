@@ -214,9 +214,7 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
           
           {/* Multimedia Template Warning */}
           {selectedTemplate && selectedTemplate.components?.some(comp => 
-            comp.type === 'HEADER' && comp.parameters?.some(param => 
-              ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(param.type)
-            )
+            comp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)
           ) && (
             <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
               <div className="flex items-center space-x-2 mb-2">
@@ -230,6 +228,24 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
               <p className="text-sm text-purple-700 dark:text-purple-300">
                 Esta plantilla requiere parámetros multimedia (imagen/video/documento). 
                 Se usará una imagen por defecto para la prueba.
+              </p>
+            </div>
+          )}
+          
+          {/* Interactive Template Info */}
+          {selectedTemplate && selectedTemplate.components?.some(comp => comp.type === 'BUTTONS') && (
+            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-200 dark:border-green-800">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">🔘</span>
+                </div>
+                <span className="font-semibold text-green-800 dark:text-green-200">
+                  Plantilla con Botones Interactivos
+                </span>
+              </div>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                Esta plantilla incluye botones que los usuarios pueden presionar. 
+                Los botones se enviarán automáticamente con el mensaje.
               </p>
             </div>
           )}
