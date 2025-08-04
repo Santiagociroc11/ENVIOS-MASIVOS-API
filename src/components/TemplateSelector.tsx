@@ -104,20 +104,63 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
                       <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">
                         {comp.type}
                       </span>
+                      {comp.type === 'HEADER' && comp.parameters?.some(p => ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(p.type)) && (
+                        <span className="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900 px-2 py-1 rounded">
+                          📷 MULTIMEDIA
+                        </span>
+                      )}
                     </div>
                     {comp.text && (
                       <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 leading-relaxed">{comp.text}</p>
                     )}
                     {comp.parameters && comp.parameters.length > 0 && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        🔢 Requiere {comp.parameters.length} parámetro{comp.parameters.length !== 1 ? 's' : ''}
-                      </p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          🔢 Requiere {comp.parameters.length} parámetro{comp.parameters.length !== 1 ? 's' : ''}:
+                        </p>
+                        {comp.parameters.map((param, pIndex) => (
+                          <div key={pIndex} className="ml-2">
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              param.type === 'IMAGE' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                              param.type === 'VIDEO' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                              param.type === 'DOCUMENT' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                              'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                            }`}>
+                              {param.type === 'IMAGE' ? '📷' : param.type === 'VIDEO' ? '🎥' : param.type === 'DOCUMENT' ? '📄' : '📝'} {param.type}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 ))}
               </div>
             </div>
           </div>
+          
+          {/* Multimedia Template Info */}
+          {selectedTemplate.components?.some(comp => 
+            comp.type === 'HEADER' && comp.parameters?.some(param => 
+              ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(param.type)
+            )
+          ) && (
+            <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-sm">📷</span>
+                </div>
+                <h4 className="font-semibold text-purple-900 dark:text-purple-100">Plantilla Multimedia</h4>
+              </div>
+              <p className="text-sm text-purple-800 dark:text-purple-200 mb-2">
+                Esta plantilla incluye contenido multimedia. Se usará una imagen por defecto de Pexels para los envíos.
+              </p>
+              <div className="text-xs text-purple-700 dark:text-purple-300 space-y-1">
+                <p>• 📷 <strong>Imagen:</strong> Se enviará una imagen profesional por defecto</p>
+                <p>• ⚡ <strong>Automático:</strong> No necesitas configurar nada adicional</p>
+                <p>• 🎯 <strong>Consistente:</strong> Misma imagen para todos los envíos</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

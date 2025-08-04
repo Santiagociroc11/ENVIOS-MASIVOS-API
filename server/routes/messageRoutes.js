@@ -75,20 +75,41 @@ router.post('/send', async (req, res) => {
     }
     
     // Send message using the Meta Graph API
+    // Build template message with parameters support
+    const templateMessage = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: phoneNumber,
+      type: "template",
+      template: {
+        name: templateName,
+        language: {
+          code: "es"
+        }
+      }
+    };
+
+    // Add components with parameters if template requires them
+    // This handles multimedia templates (header images/videos/documents)
+    if (templateName !== 'hello_world') {
+      templateMessage.template.components = [
+        {
+          type: "header",
+          parameters: [
+            {
+              type: "image",
+              image: {
+                link: "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800"
+              }
+            }
+          ]
+        }
+      ];
+    }
+
     const response = await axios.post(
       `https://graph.facebook.com/v17.0/${process.env.FROM_PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: phoneNumber,
-        type: "template",
-        template: {
-          name: templateName,
-          language: {
-            code: "es"
-          }
-        }
-      },
+      templateMessage,
       {
         headers: {
           Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
