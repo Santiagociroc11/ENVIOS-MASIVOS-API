@@ -1,11 +1,11 @@
 import React from 'react';
 import { Send, CheckCircle2 } from 'lucide-react';
-import { Template } from '../types';
+import { ConfiguredTemplate } from '../types';
 
 interface SendingPanelProps {
   quantity: number;
   setQuantity: (quantity: number) => void;
-  selectedTemplate: Template | null;
+  selectedTemplate: ConfiguredTemplate | null;
   selectedCount: number;
   onSendMessages: () => void;
   onSelectAll: () => void;

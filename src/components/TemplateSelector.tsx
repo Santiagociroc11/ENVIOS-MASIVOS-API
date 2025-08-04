@@ -1,10 +1,10 @@
 import React from 'react';
-import { Template } from '../types';
+import { Template, ConfiguredTemplate } from '../types';
 
 interface TemplateSelectorProps {
-  templates: Template[];
-  selectedTemplate: Template | null;
-  onSelectTemplate: (template: Template | null) => void;
+  templates: ConfiguredTemplate[];
+  selectedTemplate: ConfiguredTemplate | null;
+  onSelectTemplate: (template: ConfiguredTemplate | null) => void;
   loading: boolean;
 }
 
@@ -45,16 +45,16 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
         <div className="relative">
           <select
             className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-purple-500 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg py-4 pl-4 pr-10 transition-all duration-200 hover:shadow-xl"
-            value={selectedTemplate?.name || ''}
+            value={selectedTemplate?.templateName || ''}
             onChange={(e) => {
-              const selected = templates.find(t => t.name === e.target.value) || null;
+              const selected = templates.find(t => t.templateName === e.target.value) || null;
               onSelectTemplate(selected);
             }}
           >
             <option value="">✨ Elige una plantilla para comenzar</option>
             {templates.map((template) => (
-              <option key={template.name} value={template.name}>
-                📱 {template.name} ({template.status})
+              <option key={template._id} value={template.templateName}>
+                📱 {template.displayName} ({template.status})
               </option>
             ))}
           </select>
@@ -81,7 +81,8 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
             <div className="space-y-3">
               <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">📝 Nombre</span>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{selectedTemplate.name}</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{selectedTemplate.displayName}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">({selectedTemplate.templateName})</p>
               </div>
               
               <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
@@ -182,9 +183,7 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
           </div>
           
           {/* Multimedia Template Info */}
-          {selectedTemplate.components?.some(comp => 
-            comp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)
-          ) && (
+          {selectedTemplate.mediaUrl && (
             <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
               <div className="flex items-center space-x-2 mb-2">
                 <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
@@ -193,18 +192,19 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
                 <h4 className="font-semibold text-purple-900 dark:text-purple-100">Plantilla Multimedia</h4>
               </div>
               <p className="text-sm text-purple-800 dark:text-purple-200 mb-2">
-                Esta plantilla incluye contenido multimedia. Se usará una imagen por defecto de Pexels para los envíos.
+                Esta plantilla incluye contenido multimedia personalizado.
               </p>
               <div className="text-xs text-purple-700 dark:text-purple-300 space-y-1">
-                <p>• 📷 <strong>Imagen:</strong> Se enviará una imagen profesional por defecto</p>
-                <p>• ⚡ <strong>Automático:</strong> No necesitas configurar nada adicional</p>
-                <p>• 🎯 <strong>Consistente:</strong> Misma imagen para todos los envíos</p>
+                <p>• 📷 <strong>Tipo:</strong> {selectedTemplate.mediaType?.toUpperCase()}</p>
+                <p>• 🔗 <strong>URL:</strong> {selectedTemplate.mediaUrl}</p>
+                <p>• 🎯 <strong>Consistente:</strong> Mismo medio para todos los envíos</p>
               </div>
             </div>
           )}
           
           {/* Interactive Template Info */}
-          {selectedTemplate.components?.some(comp => comp.type === 'BUTTONS') && (
+          {/* Note: We'll need to check if original template has buttons - for now showing always */}
+          {true && (
             <div className="mt-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-xl border border-green-200 dark:border-green-800">
               <div className="flex items-center space-x-2 mb-2">
                 <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">

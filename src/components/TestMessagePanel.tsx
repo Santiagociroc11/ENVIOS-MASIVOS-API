@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Send, Phone, CheckCircle2, AlertCircle, Loader } from 'lucide-react';
-import { Template } from '../types';
+import { ConfiguredTemplate } from '../types';
 import { sendTemplateMessage } from '../api/services';
 
 interface TestMessagePanelProps {
-  selectedTemplate: Template | null;
+  selectedTemplate: ConfiguredTemplate | null;
   selectedDatabases: string[];
 }
 
@@ -39,7 +39,7 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
     setTestResult(null);
 
     try {
-      const result = await sendTemplateMessage(testNumber.trim(), selectedTemplate.name, selectedDatabases);
+      const result = await sendTemplateMessage(testNumber.trim(), selectedTemplate.templateName, selectedDatabases);
       
       console.log('📤 Resultado del Envío:', result);
       
@@ -258,9 +258,7 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
           )}
           
           {/* Multimedia Template Warning */}
-          {selectedTemplate && selectedTemplate.components?.some(comp => 
-            comp.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(comp.format)
-          ) && (
+          {selectedTemplate && selectedTemplate.mediaUrl && (
             <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
               <div className="flex items-center space-x-2 mb-2">
                 <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
@@ -271,14 +269,13 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
                 </span>
               </div>
               <p className="text-sm text-purple-700 dark:text-purple-300">
-                Esta plantilla requiere parámetros multimedia (imagen/video/documento). 
-                Se usará una imagen por defecto para la prueba.
+                Esta plantilla incluye contenido multimedia personalizado ({selectedTemplate.mediaType}).
               </p>
             </div>
           )}
           
           {/* Interactive Template Info */}
-          {selectedTemplate && selectedTemplate.components?.some(comp => comp.type === 'BUTTONS') && (
+          {selectedTemplate && (
             <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-200 dark:border-green-800">
               <div className="flex items-center space-x-2 mb-2">
                 <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">

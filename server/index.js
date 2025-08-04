@@ -18,6 +18,7 @@ import userRoutes from './routes/userRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import databaseRoutes from './routes/databaseRoutes.js';
 import campaignRoutes from './routes/campaignRoutes.js';
+import configuredTemplateRoutes from './routes/configuredTemplateRoutes.js';
 
 dotenv.config();
 
@@ -75,6 +76,7 @@ app.get('/', (req, res) => {
 // API Routes
 app.use('/api/databases', databaseRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/configured-templates', configuredTemplateRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/campaigns', campaignRoutes);

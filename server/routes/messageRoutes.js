@@ -3,6 +3,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import { getDatabase } from '../config/databases.js';
 import { getDatabaseModel } from '../models/dynamicUserModel.js';
+import ConfiguredTemplate from '../models/configuredTemplateModel.js';
 
 dotenv.config();
 
@@ -195,6 +196,20 @@ router.post('/send', async (req, res) => {
     
     // Send message using the Meta Graph API
     // Build template message with parameters support
+    
+    // Get configured template details
+    const configuredTemplate = await ConfiguredTemplate.findOne({ 
+      templateName: templateName,
+      isActive: true 
+    });
+    
+    if (!configuredTemplate) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Configured template not found or inactive' 
+      });
+    }
+    
     const templateMessage = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
@@ -203,161 +218,91 @@ router.post('/send', async (req, res) => {
       template: {
         name: templateName,
         language: {
-          code: "es" // Will be updated below with actual template language
+          code: configuredTemplate.language
         }
       }
     };
 
     // Build components based on template structure
     try {
-      // Find the template in our cached templates
-      const templatesResponse = await axios.get(
-        `https://graph.facebook.com/v17.0/${process.env.WHATSAPP_BUSINESS_ACCOUNT_ID}/message_templates`,
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`
-          }
-        }
-      );
+      const components = [];
       
-      const template = templatesResponse.data.data?.find(t => t.name === templateName);
+      // Add media component if configured
+      if (configuredTemplate.mediaUrl && configuredTemplate.mediaType) {
+        console.log('🎯 Adding media component:', configuredTemplate.mediaType, configuredTemplate.mediaUrl);
+        
+        if (configuredTemplate.mediaType === 'video') {
+          components.push({
+            type: "header",
+            parameters: [
+              {
+                type: "video",
+                video: {
+                  link: configuredTemplate.mediaUrl
+                }
+              }
+            ]
+          });
+        } else if (configuredTemplate.mediaType === 'image') {
+          components.push({
+            type: "header",
+            parameters: [
+              {
+                type: "image",
+                image: {
+                  link: configuredTemplate.mediaUrl
+                }
+              }
+            ]
+          });
+        } else if (configuredTemplate.mediaType === 'document') {
+          components.push({
+            type: "header",
+            parameters: [
+              {
+                type: "document",
+                document: {
+                  link: configuredTemplate.mediaUrl,
+                  filename: "documento.pdf"
+                }
+              }
+            ]
+          });
+        }
+      }
       
-      if (template && template.components) {
-        // Update language with actual template language
-        templateMessage.template.language.code = template.language;
+      // Add other parameters if configured
+      if (configuredTemplate.headerText && configuredTemplate.headerText.length > 0) {
+        const headerParams = configuredTemplate.headerText.map(text => ({
+          type: "text",
+          text: text
+        }));
         
-        const components = [];
+        components.push({
+          type: "header",
+          parameters: headerParams
+        });
+      }
+      
+      if (configuredTemplate.bodyText && configuredTemplate.bodyText.length > 0) {
+        const bodyParams = configuredTemplate.bodyText[0].map(text => ({
+          type: "text",
+          text: text
+        }));
         
-        console.log('🎯 Processing template:', templateName);
-        console.log('📋 Template components:', template.components);
-        
-        for (const component of template.components) {
-          console.log('🔧 Processing component:', component.type, component.format);
-          
-          if (component.type === 'HEADER' && component.format) {
-            if (component.format === 'VIDEO') {
-             // Use the actual video from the template's header_handle
-             const videoUrl = component.example?.header_handle?.[0] || "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4";
-              components.push({
-                type: "header",
-                parameters: [
-                  {
-                    type: "video",
-                    video: {
-                     link: videoUrl
-                    }
-                  }
-                ]
-              });
-            } else if (component.format === 'IMAGE') {
-             // Use the actual image from the template's header_handle if available
-             const imageUrl = component.example?.header_handle?.[0] || "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800";
-              components.push({
-                type: "header",
-                parameters: [
-                  {
-                    type: "image",
-                    image: {
-                     link: imageUrl
-                    }
-                  }
-                ]
-              });
-            } else if (component.format === 'DOCUMENT') {
-             // Use the actual document from the template's header_handle if available
-             const documentUrl = component.example?.header_handle?.[0] || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
-              components.push({
-                type: "header",
-                parameters: [
-                  {
-                    type: "document",
-                    document: {
-                     link: documentUrl,
-                      filename: "documento.pdf"
-                    }
-                  }
-                ]
-              });
-            } else if (component.format === 'TEXT' && component.example?.header_text) {
-              // Handle text headers with variables
-              const headerParams = component.example.header_text.map(text => ({
-                type: "text",
-                text: text
-              }));
-              
-              if (headerParams.length > 0) {
-                components.push({
-                  type: "header",
-                  parameters: headerParams
-                });
-              }
-            } else if (component.format === 'LOCATION') {
-              components.push({
-                type: "header",
-                parameters: [
-                  {
-                    type: "location",
-                    location: {
-                      latitude: "4.7110",
-                      longitude: "-74.0721",
-                      name: "Bogotá, Colombia",
-                      address: "Bogotá, Colombia"
-                    }
-                  }
-                ]
-              });
-            }
-          } else if (component.type === 'BODY') {
-            // Handle body parameters if they exist
-            if (component.example?.body_text && component.example.body_text[0]) {
-              const bodyParams = component.example.body_text[0].map(text => ({
-                type: "text",
-                text: text
-              }));
-              
-              if (bodyParams.length > 0) {
-                components.push({
-                  type: "body",
-                  parameters: bodyParams
-                });
-              }
-            }
-            // If no parameters needed, don't add body component
-          } else if (component.type === 'BUTTONS' && component.buttons) {
-            // Handle interactive buttons - only add parameters for buttons that need them
-            component.buttons.forEach((button, index) => {
-              if (button.type === 'URL' && button.url && button.example && button.example.length > 0) {
-                // Only URL buttons with dynamic parameters need components
-                components.push({
-                  type: "button",
-                  sub_type: "url",
-                  index: index.toString(),
-                  parameters: [
-                    {
-                      type: "text",
-                      text: button.example[0] || "default"
-                    }
-                  ]
-                });
-              }
-              // QUICK_REPLY and PHONE_NUMBER buttons don't need parameters - they go as defined in template
-            });
-          }
-        }
-        
-        console.log('✅ Built components:', JSON.stringify(components, null, 2));
-        
-        if (components.length > 0) {
-          templateMessage.template.components = components;
-        }
-      } else {
-        console.warn('⚠️ Template not found or has no components:', templateName);
+        components.push({
+          type: "body",
+          parameters: bodyParams
+        });
+      }
+      
+      console.log('✅ Built components from configured template:', JSON.stringify(components, null, 2));
+      
+      if (components.length > 0) {
+        templateMessage.template.components = components;
       }
     } catch (templateError) {
-      console.warn('⚠️ Could not fetch template details, using basic structure:', templateError.message);
-      
-     // No fallback components - let the template use its default structure
-     console.log('📋 Using template without additional components');
+      console.warn('⚠️ Error building template components:', templateError.message);
     }
 
     console.log('📤 Final template message:', JSON.stringify(templateMessage, null, 2));

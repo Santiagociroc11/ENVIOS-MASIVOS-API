@@ -15,6 +15,24 @@ export interface Template {
   }>;
 }
 
+export interface ConfiguredTemplate {
+  _id?: string;
+  templateId: string;
+  templateName: string;
+  displayName: string;
+  language: string;
+  category: string;
+  status: string;
+  mediaUrl?: string;
+  mediaType?: 'video' | 'image' | 'document';
+  headerText?: string[];
+  bodyText?: string[];
+  buttonParams?: { [key: string]: string };
+  createdAt?: Date;
+  updatedAt?: Date;
+  isActive: boolean;
+}
+
 export interface User {
   _id: string;
   whatsapp: string;

@@ -8,8 +8,9 @@ import SendingModal from './components/SendingModal';
 import CampaignHistory from './components/CampaignHistory';
 import AdvancedFilters from './components/AdvancedFilters';
 import TestMessagePanel from './components/TestMessagePanel';
+import TemplateManagement from './components/TemplateManagement';
 import { fetchTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign } from './api/services';
-import { Template, User } from './types';
+import { Template, ConfiguredTemplate, User } from './types';
 
 interface SendingResult {
   phoneNumber: string;
@@ -31,8 +32,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabType>('send');
   const [selectedDatabases, setSelectedDatabases] = useState<string[]>(['bot-win', 'bot-win-2', 'bot-win-3', 'bot-win-4']);
   const [databaseInfo, setDatabaseInfo] = useState<any>(null);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [templates, setTemplates] = useState<ConfiguredTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<ConfiguredTemplate | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -71,7 +72,7 @@ function App() {
       setLoadingAll(shouldLoadAll);
       
       try {
-        const templatesData = await fetchTemplates();
+        const templatesData = await fetchConfiguredTemplates();
         setTemplates(templatesData);
         
         if (selectedDatabases.length > 0) {
@@ -441,6 +442,7 @@ function App() {
 
   const tabs = [
     { id: 'send', label: 'Enviar Mensajes', icon: Send, color: 'from-blue-500 to-purple-500' },
+    { id: 'templates', label: 'Gestión de Plantillas', icon: MessageSquare, color: 'from-green-500 to-emerald-500' },
     { id: 'campaigns', label: 'Historial de Campañas', icon: History, color: 'from-green-500 to-teal-500' },
     { id: 'settings', label: 'Configuración', icon: Settings, color: 'from-orange-500 to-red-500' }
   ];
@@ -656,6 +658,10 @@ function App() {
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === 'templates' && (
+          <TemplateManagement />
         )}
 
         {activeTab === 'campaigns' && (

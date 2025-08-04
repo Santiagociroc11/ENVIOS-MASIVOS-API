@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Template, User } from '../types';
+import { Template, ConfiguredTemplate, User } from '../types';
 
 const API_BASE_URL = '/api';
 
@@ -23,6 +23,15 @@ export const fetchTemplates = async (): Promise<Template[]> => {
   }
 };
 
+export const fetchConfiguredTemplates = async (): Promise<ConfiguredTemplate[]> => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/configured-templates/active`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching configured templates:', error);
+    return [];
+  }
+};
 export const fetchFilteredUsers = async (databases?: string[], page: number = 1, limit: number = 50, loadAll: boolean = false): Promise<{ users: User[]; database: string; collection: string; count: number; pagination?: any }> => {
   try {
     const params = new URLSearchParams();
