@@ -147,6 +147,21 @@ router.post('/send', async (req, res) => {
                   }
                 ]
               });
+            } else if (component.format === 'LOCATION') {
+              components.push({
+                type: "header",
+                parameters: [
+                  {
+                    type: "location",
+                    location: {
+                      latitude: "4.7110",
+                      longitude: "-74.0721",
+                      name: "Bogotá, Colombia",
+                      address: "Bogotá, Colombia"
+                    }
+                  }
+                ]
+              });
             } else if (component.format === 'TEXT' && component.example?.header_text) {
               // Handle text headers with variables
               const headerParams = component.example.header_text.map(text => ({
@@ -174,6 +189,41 @@ router.post('/send', async (req, res) => {
                 parameters: bodyParams
               });
             }
+          } else if (component.type === 'BUTTONS' && component.buttons) {
+            // Handle interactive buttons - each button needs its own component
+            component.buttons.forEach((button, index) => {
+              if (button.type === 'QUICK_REPLY') {
+                components.push({
+                  type: "button",
+                  sub_type: "quick_reply",
+                  index: index.toString(),
+                  parameters: [
+                    {
+                      type: "payload",
+                      payload: `PAYLOAD_${index}`
+                    }
+                  ]
+                });
+              } else if (button.type === 'URL' && button.url) {
+                // URL buttons with dynamic parameters
+                if (button.example && button.example.length > 0) {
+                  components.push({
+                    type: "button",
+                    sub_type: "url",
+                    index: index.toString(),
+                    parameters: [
+                      {
+                        type: "text",
+                        text: button.example[0] || "default"
+                      }
+                    ]
+                  });
+                }
+              } else if (button.type === 'PHONE_NUMBER') {
+                // Phone number buttons don't need parameters
+                // They are handled automatically by WhatsApp
+              }
+            });
           }
           // Note: FOOTER and BUTTONS don't typically need parameters
           // They are static components defined in the template
