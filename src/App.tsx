@@ -9,7 +9,7 @@ import CampaignHistory from './components/CampaignHistory';
 import AdvancedFilters from './components/AdvancedFilters';
 import TestMessagePanel from './components/TestMessagePanel';
 import TemplateManagement from './components/TemplateManagement';
-import { fetchTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign } from './api/services';
+import { fetchTemplates, fetchConfiguredTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign } from './api/services';
 import { Template, ConfiguredTemplate, User } from './types';
 
 interface SendingResult {
