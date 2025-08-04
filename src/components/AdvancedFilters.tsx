@@ -6,6 +6,7 @@ interface FilterCondition {
   field: 'estado' | 'medio' | 'ingreso' | 'enviado';
   operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'not_contains';
   value: string | number | boolean;
+  logicalOperator?: 'AND' | 'OR';
 }
 
 interface AdvancedFiltersProps {
@@ -59,7 +60,8 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
       id: Date.now().toString(),
       field: 'estado',
       operator: 'equals',
-      value: ''
+      value: '',
+      logicalOperator: 'AND'
     };
     onFiltersChange([...filters, newFilter]);
   };
@@ -203,12 +205,23 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
               <div key={filter.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600">
                 <div className="flex items-center space-x-3">
                   {index > 0 && (
-                    <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-1 rounded text-xs font-medium">
-                      Y
+                    <div className="flex flex-col space-y-1">
+                      <select
+                        value={filter.logicalOperator || 'AND'}
+                        onChange={(e) => updateFilter(filter.id, { logicalOperator: e.target.value as 'AND' | 'OR' })}
+                        className="text-xs font-medium px-2 py-1 rounded border-0 focus:ring-1 focus:ring-blue-500"
+                        style={{
+                          backgroundColor: filter.logicalOperator === 'OR' ? '#fef3c7' : '#dbeafe',
+                          color: filter.logicalOperator === 'OR' ? '#92400e' : '#1e40af'
+                        }}
+                      >
+                        <option value="AND">Y</option>
+                        <option value="OR">O</option>
+                      </select>
                     </div>
                   )}
                   
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
                     {/* Campo */}
                     <select
                       value={filter.field}
@@ -273,7 +286,17 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                 <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
                   {filters.map((filter, index) => (
                     <div key={filter.id}>
-                      {index > 0 && <span className="font-bold">Y </span>}
+                      {index > 0 && (
+                        <span 
+                          className={`font-bold ${
+                            filter.logicalOperator === 'OR' 
+                              ? 'text-yellow-700 dark:text-yellow-300' 
+                              : 'text-blue-700 dark:text-blue-300'
+                          }`}
+                        >
+                          {filter.logicalOperator || 'Y'}{' '}
+                        </span>
+                      )}
                       <span className="font-medium">{fieldOptions.find(f => f.value === filter.field)?.label}</span>
                       {' '}
                       <span>{operatorOptions[filter.field]?.find(o => o.value === filter.operator)?.label}</span>

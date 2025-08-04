@@ -111,30 +111,44 @@ function App() {
       );
     }
     
-    // Apply advanced filters
-    advancedFilters.forEach(filter => {
+    // Apply advanced filters with AND/OR logic
+    if (advancedFilters.length > 0) {
       filtered = filtered.filter(user => {
-        const fieldValue = user[filter.field];
-        const filterValue = filter.value;
+        let result = true;
+        let currentGroup: FilterCondition[] = [];
         
-        switch (filter.operator) {
-          case 'equals':
-            return fieldValue === filterValue;
-          case 'not_equals':
-            return fieldValue !== filterValue;
-          case 'greater_than':
-            return Number(fieldValue) > Number(filterValue);
-          case 'less_than':
-            return Number(fieldValue) < Number(filterValue);
-          case 'contains':
-            return String(fieldValue).toLowerCase().includes(String(filterValue).toLowerCase());
-          case 'not_contains':
-            return !String(fieldValue).toLowerCase().includes(String(filterValue).toLowerCase());
-          default:
-            return true;
+        // Group filters by logical operator
+        for (let i = 0; i < advancedFilters.length; i++) {
+          const filter = advancedFilters[i];
+          
+          if (i === 0 || filter.logicalOperator === 'AND') {
+            // Process previous OR group if exists
+            if (currentGroup.length > 0) {
+              const orResult = currentGroup.some(f => evaluateFilter(user, f));
+              result = result && orResult;
+              currentGroup = [];
+            }
+            
+            if (filter.logicalOperator === 'AND' || i === 0) {
+              result = result && evaluateFilter(user, filter);
+            } else {
+              currentGroup.push(filter);
+            }
+          } else {
+            // OR operator
+            currentGroup.push(filter);
+          }
         }
+        
+        // Process final OR group if exists
+        if (currentGroup.length > 0) {
+          const orResult = currentGroup.some(f => evaluateFilter(user, f));
+          result = result && orResult;
+        }
+        
+        return result;
       });
-    });
+    }
     
     // Apply sorting
     filtered = filtered.sort((a, b) => {
@@ -148,6 +162,29 @@ function App() {
     
     setFilteredUsers(filtered);
   }, [users, searchTerm, advancedFilters, sendingOrder]);
+
+  // Helper function to evaluate individual filter
+  const evaluateFilter = (user: User, filter: FilterCondition): boolean => {
+    const fieldValue = user[filter.field];
+    const filterValue = filter.value;
+    
+    switch (filter.operator) {
+      case 'equals':
+        return fieldValue === filterValue;
+      case 'not_equals':
+        return fieldValue !== filterValue;
+      case 'greater_than':
+        return Number(fieldValue) > Number(filterValue);
+      case 'less_than':
+        return Number(fieldValue) < Number(filterValue);
+      case 'contains':
+        return String(fieldValue).toLowerCase().includes(String(filterValue).toLowerCase());
+      case 'not_contains':
+        return !String(fieldValue).toLowerCase().includes(String(filterValue).toLowerCase());
+      default:
+        return true;
+    }
+  };
 
   const handleRefresh = async () => {
     setLoading(true);
