@@ -7,6 +7,7 @@ import SendingPanel from './components/SendingPanel';
 import SendingModal from './components/SendingModal';
 import CampaignHistory from './components/CampaignHistory';
 import AdvancedFilters from './components/AdvancedFilters';
+import TestMessagePanel from './components/TestMessagePanel';
 import { fetchTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign } from './api/services';
 import { Template, User } from './types';
 
@@ -527,6 +528,21 @@ function App() {
                 selectedTemplate={selectedTemplate}
                 onSelectTemplate={setSelectedTemplate}
                 loading={loading}
+              />
+            </div>
+
+            {/* Test Message Panel */}
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-xl rounded-2xl p-8 border border-gray-200/20">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
+                  <Send className="w-4 h-4 text-white" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Envío de Prueba</h2>
+              </div>
+              
+              <TestMessagePanel 
+                selectedTemplate={selectedTemplate}
+                selectedDatabases={selectedDatabases}
               />
             </div>
 
