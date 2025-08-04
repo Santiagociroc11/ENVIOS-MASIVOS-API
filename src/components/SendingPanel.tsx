@@ -49,6 +49,9 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
                 <option value={50}>📄 50 usuarios</option>
                 <option value={100}>📚 100 usuarios</option>
                 <option value={250}>📖 250 usuarios</option>
+                <option value={500}>📗 500 usuarios</option>
+                <option value={1000}>📘 1,000 usuarios</option>
+                <option value={2500}>📙 2,500 usuarios</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

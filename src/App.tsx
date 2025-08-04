@@ -24,7 +24,7 @@ function App() {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [quantity, setQuantity] = useState<number>(10);
+  const [quantity, setQuantity] = useState<number>(100);
   const [sendingOrder, setSendingOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isSending, setIsSending] = useState<boolean>(false);
@@ -62,7 +62,7 @@ function App() {
         setTemplates(templatesData);
         
         if (selectedDatabases.length > 0) {
-          const response = await fetchFilteredUsers(selectedDatabases, currentPage, quantity);
+          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity);
           setUsers(response.users);
           setFilteredUsers(response.users);
           setPagination(response.pagination);
@@ -126,7 +126,7 @@ function App() {
     setLoading(true);
     try {
       if (selectedDatabases.length > 0) {
-        const response = await fetchFilteredUsers(selectedDatabases, currentPage, quantity);
+        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity);
         setUsers(response.users);
         setFilteredUsers(response.users);
         setPagination(response.pagination);

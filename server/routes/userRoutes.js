@@ -107,7 +107,7 @@ router.get('/pending', async (req, res) => {
   try {
     // Get pagination parameters
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = Math.min(parseInt(req.query.limit) || 100, 5000); // Max 5000 per request
     const skip = (page - 1) * limit;
     
     // Get database keys from query parameter (can be multiple, comma-separated)
