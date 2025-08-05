@@ -347,7 +347,9 @@ function App() {
     }
     console.log('🆔 Campaign ID:', campaign.campaignId);
     
-    setCurrentCampaignId(campaign.campaignId);
+    const campaignId = campaign.campaignId; // Capturar el ID directamente
+    setCurrentCampaignId(campaignId);
+    console.log('✅ currentCampaignId set to:', campaignId);
     resetSendingState();
     setIsSending(true);
     setShowSendingModal(true);
@@ -376,6 +378,7 @@ function App() {
     const localResults: SendingResult[] = [];
     
     console.log('🔄 === INICIANDO BUCLE DE ENVÍO ===');
+    console.log('🆔 campaignId to use:', campaignId);
     for (let i = 0; i < usersToMessage.length; i++) {
       console.log(`📤 Enviando mensaje ${i + 1}/${usersToMessage.length}`);
       if (sendingControlRef.current.cancel) {
@@ -404,27 +407,27 @@ function App() {
         
         // Add user to campaign
         console.log('📊 Agregando usuario a campaña...');
-        console.log('🆔 Campaign ID:', currentCampaignId);
+        console.log('🆔 Campaign ID:', campaignId);
         
-        if (currentCampaignId) {
+        if (campaignId) {
           const campaignData = {
-            campaignId: currentCampaignId,
+            campaignId: campaignId,
             whatsapp: user.whatsapp,
-                         database: 'bot-win-4', // BD4 unificada
+            database: 'bot-win-4', // BD4 unificada
             status: result.success ? 'sent' : 'failed',
             messageId: result.success ? 'message-id' : undefined,
             error: result.error
           };
           console.log('📋 Datos para campaña:', campaignData);
           
-                     const campaignResult = await addUserToCampaign(
-             currentCampaignId,
-             user.whatsapp,
-             'bot-win-4', // BD4 unificada - todos los usuarios están aquí
-             result.success ? 'sent' : 'failed',
-             result.success ? 'message-id' : undefined,
-             result.error
-           );
+          const campaignResult = await addUserToCampaign(
+            campaignId,
+            user.whatsapp,
+            'bot-win-4', // BD4 unificada - todos los usuarios están aquí
+            result.success ? 'sent' : 'failed',
+            result.success ? 'message-id' : undefined,
+            result.error
+          );
           console.log('✅ Resultado addUserToCampaign:', campaignResult);
         } else {
           console.error('❌ NO CAMPAIGN ID - Cannot add user to campaign');
@@ -483,11 +486,11 @@ function App() {
     
     // Complete campaign
     console.log('🏁 === COMPLETANDO CAMPAÑA ===');
-    console.log('🆔 Campaign ID:', currentCampaignId);
+    console.log('🆔 Campaign ID:', campaignId);
     
-    if (currentCampaignId) {
+    if (campaignId) {
       console.log('✅ Calling completeCampaign...');
-      const completeResult = await completeCampaign(currentCampaignId);
+      const completeResult = await completeCampaign(campaignId);
       console.log('📊 Complete campaign result:', completeResult);
     } else {
       console.error('❌ NO CAMPAIGN ID - Cannot complete campaign');
