@@ -79,7 +79,7 @@ function App() {
         setTemplates(templatesData);
         
         if (selectedDatabases.length > 0) {
-          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll);
+          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder);
           setUsers(response.users);
           setFilteredUsers(response.users);
           setPagination(response.pagination);
@@ -103,7 +103,7 @@ function App() {
     };
 
     loadInitialData();
-  }, [selectedDatabases, currentPage, quantity]);
+  }, [selectedDatabases, currentPage, quantity, sendingOrder]);
 
   // Filter users based on search term and filters
   useEffect(() => {
@@ -198,7 +198,7 @@ function App() {
     
     try {
       if (selectedDatabases.length > 0) {
-        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll);
+        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder);
         setUsers(response.users);
         setFilteredUsers(response.users);
         setPagination(response.pagination);
@@ -504,7 +504,7 @@ function App() {
     
     setLoading(true);
     try {
-      const response = await fetchFilteredUsers(selectedDatabases, currentPage + 1, quantity);
+      const response = await fetchFilteredUsers(selectedDatabases, currentPage + 1, quantity, false, sendingOrder);
       setUsers(prev => [...prev, ...response.users]);
       setFilteredUsers(prev => [...prev, ...response.users]);
       setCurrentPage(prev => prev + 1);

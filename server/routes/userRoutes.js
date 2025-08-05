@@ -117,6 +117,9 @@ router.get('/pending', async (req, res) => {
     const databasesParam = req.query.databases || 'bot-win-2';
     const dbKeys = databasesParam.split(',').filter(key => key.trim());
     
+    // Get order parameter (asc or desc)
+    const order = req.query.order === 'asc' ? 1 : -1;
+    
     if (dbKeys.length === 0) {
       return res.status(400).json({ error: 'At least one database must be specified' });
     }
@@ -147,7 +150,7 @@ router.get('/pending', async (req, res) => {
         })
         .select('whatsapp estado medio medio_at enviado _id') // Only select needed fields
         .lean() // Use lean() for better performance
-        .sort({ medio_at: -1 });
+        .sort({ medio_at: order });
         
         // Apply pagination only if not loading all
         if (!loadAll) {
@@ -180,8 +183,11 @@ router.get('/pending', async (req, res) => {
       }
     }
     
-    // Sort all users by medio_at (most recent first)
-    allUsers.sort((a, b) => (b.medio_at || 0) - (a.medio_at || 0));
+    // Sort all users by medio_at based on order parameter
+    allUsers.sort((a, b) => order === 1 
+      ? (a.medio_at || 0) - (b.medio_at || 0)  // asc: oldest first
+      : (b.medio_at || 0) - (a.medio_at || 0)  // desc: newest first
+    );
     
     res.json({
       users: allUsers,
