@@ -19,6 +19,7 @@ import messageRoutes from './routes/messageRoutes.js';
 import databaseRoutes from './routes/databaseRoutes.js';
 import campaignRoutes from './routes/campaignRoutes.js';
 import configuredTemplateRoutes from './routes/configuredTemplateRoutes.js';
+import campaignStatsRoutes from './routes/campaignStatsRoutes.js';
 
 dotenv.config();
 
@@ -80,6 +81,7 @@ app.use('/api/configured-templates', configuredTemplateRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/stats', campaignStatsRoutes);
 
 // Catch-all for undefined API routes
 app.use('/api/*', (req, res) => {

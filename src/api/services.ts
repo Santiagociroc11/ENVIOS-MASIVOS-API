@@ -218,7 +218,7 @@ export const sendTemplateMessage = async (phoneNumber: string, templateName: str
   }
 };
 
-export const markMessageSent = async (phoneNumber: string, databases?: string[], templateName?: string): Promise<boolean> => {
+export const markMessageSent = async (phoneNumber: string, _databases?: string[], templateName?: string): Promise<boolean> => {
   try {
     console.log('🎯 === MARCANDO COMO ENVIADO (BD4 UNIFICADA) ===');
     console.log('📱 Número:', phoneNumber);
@@ -282,7 +282,7 @@ export const createCampaign = async (name: string, templateName: string, templat
     
     console.log('✅ Campaign created successfully:', response.data);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ === ERROR CREATING CAMPAIGN ===');
     console.error('📄 Error details:', error);
     
@@ -324,7 +324,7 @@ export const addUserToCampaign = async (campaignId: string, whatsapp: string, da
     
     console.log('✅ AddUserToCampaign response:', response.data);
     return response.data.success;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ === ERROR ADDING USER TO CAMPAIGN ===');
     console.error('📄 Error details:', error);
     
@@ -357,5 +357,52 @@ export const completeCampaign = async (campaignId: string) => {
     }
     
     return false;
+  }
+};
+
+// Campaign Statistics API
+export const createCampaignStats = async (data: {
+  templateName: string;
+  usersList: any[];
+  databases: string[];
+  sendingOrder: 'asc' | 'desc';
+  notes?: string;
+}): Promise<any> => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/stats/create`, data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error creating campaign stats:', error);
+    throw error;
+  }
+};
+
+export const fetchCampaignsList = async (page: number = 1, limit: number = 20): Promise<any> => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/stats/campaigns?page=${page}&limit=${limit}`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching campaigns list:', error);
+    return { campaigns: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } };
+  }
+};
+
+export const fetchCampaignStats = async (campaignId: string): Promise<any> => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/stats/campaign/${campaignId}/stats`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching campaign stats:', error);
+    throw error;
+  }
+};
+
+export const deleteCampaignStats = async (campaignId: string): Promise<any> => {
+  try {
+    const response = await axios.delete(`${API_BASE_URL}/stats/campaign/${campaignId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error deleting campaign stats:', error);
+    throw error;
   }
 };

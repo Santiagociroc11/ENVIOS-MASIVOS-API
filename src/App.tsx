@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, RefreshCw, Database, MessageSquare, Users, History, Settings } from 'lucide-react';
+import { Search, Send, RefreshCw, Database, MessageSquare, Users, History, Settings, BarChart3 } from 'lucide-react';
 import DatabaseSelector from './components/DatabaseSelector';
 import TemplateSelector from './components/TemplateSelector';
 import UserList from './components/UserList';
@@ -11,7 +11,8 @@ import TestMessagePanel from './components/TestMessagePanel';
 import TemplateManagement from './components/TemplateManagement';
 import StepByStepSending from './components/StepByStepSending';
 import SettingsPanel from './components/SettingsPanel';
-import { fetchTemplates, fetchConfiguredTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign } from './api/services';
+import StatsPanel from './components/StatsPanel';
+import { fetchTemplates, fetchConfiguredTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign, createCampaignStats } from './api/services';
 import { Template, ConfiguredTemplate, User } from './types';
 
 interface SendingResult {
@@ -28,7 +29,7 @@ interface FilterCondition {
   value: string | number | boolean;
 }
 
-type TabType = 'send' | 'campaigns' | 'settings';
+type TabType = 'send' | 'campaigns' | 'settings' | 'stats';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('send');
@@ -317,6 +318,26 @@ function App() {
     }
     
     console.log('✅ Campaign created successfully:', campaign);
+
+    // Crear estadísticas de campaña automáticamente
+    try {
+      console.log('📊 Creating campaign stats...');
+      const usersToMessage = filteredUsers.filter(user =>
+        selectedUsers.includes(user.whatsapp)
+      );
+      
+      await createCampaignStats({
+        templateName: selectedTemplate.templateName,
+        usersList: usersToMessage,
+        databases: selectedDatabases,
+        sendingOrder: sendingOrder,
+        notes: `Envío automático - ${usersToMessage.length} usuarios`
+      });
+      console.log('✅ Campaign stats created successfully');
+    } catch (statsError) {
+      console.error('⚠️ Error creating campaign stats (continuing with send):', statsError);
+      // No detener el envío si falla la creación de estadísticas
+    }
     console.log('🆔 Campaign ID:', campaign.campaignId);
     
     setCurrentCampaignId(campaign.campaignId);
@@ -522,6 +543,7 @@ function App() {
     { id: 'send', label: 'Enviar Mensajes', icon: Send, color: 'from-blue-500 to-purple-500' },
     { id: 'templates', label: 'Gestión de Plantillas', icon: MessageSquare, color: 'from-green-500 to-emerald-500' },
     { id: 'campaigns', label: 'Historial de Campañas', icon: History, color: 'from-green-500 to-teal-500' },
+    { id: 'stats', label: 'Estadísticas', icon: BarChart3, color: 'from-purple-500 to-pink-500' },
     { id: 'settings', label: 'Configuración', icon: Settings, color: 'from-orange-500 to-red-500' }
   ];
 
@@ -631,6 +653,10 @@ function App() {
 
         {activeTab === 'campaigns' && (
           <CampaignHistory selectedDatabases={selectedDatabases} />
+        )}
+
+        {activeTab === 'stats' && (
+          <StatsPanel />
         )}
 
         {activeTab === 'settings' && (
