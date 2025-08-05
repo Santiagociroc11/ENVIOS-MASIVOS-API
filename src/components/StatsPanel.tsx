@@ -131,6 +131,283 @@ const StatsPanel: React.FC = () => {
       </div>
     );
 
+  // Componente de Embudo de Conversión
+  const ConversionFunnel: React.FC<{ stats: any }> = ({ stats }) => {
+    const funnelSteps = [
+      {
+        name: "📤 Mensajes Enviados",
+        value: stats.totalEnviados,
+        percentage: 100,
+        color: "bg-blue-500",
+        textColor: "text-blue-600",
+        bgGradient: "from-blue-400 to-blue-600"
+      },
+      {
+        name: "💬 Respondieron",
+        value: stats.respondieron,
+        percentage: stats.totalEnviados > 0 ? (stats.respondieron / stats.totalEnviados * 100) : 0,
+        color: "bg-green-500",
+        textColor: "text-green-600",
+        bgGradient: "from-green-400 to-green-600"
+      },
+      {
+        name: "💳 Compraron",
+        value: stats.nuevasPagados,
+        percentage: stats.totalEnviados > 0 ? (stats.nuevasPagados / stats.totalEnviados * 100) : 0,
+        color: "bg-purple-500",
+        textColor: "text-purple-600",
+        bgGradient: "from-purple-400 to-purple-600"
+      },
+      {
+        name: "🚀 Con Upsell",
+        value: stats.nuevosUpsells,
+        percentage: stats.totalEnviados > 0 ? (stats.nuevosUpsells / stats.totalEnviados * 100) : 0,
+        color: "bg-orange-500",
+        textColor: "text-orange-600",
+        bgGradient: "from-orange-400 to-orange-600"
+      }
+    ];
+
+    const maxWidth = 100; // Porcentaje máximo del ancho
+    
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700">
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+          <TrendingUp className="h-6 w-6 mr-2 text-indigo-600" />
+          Embudo de Conversión
+        </h3>
+        
+        <div className="space-y-6">
+          {funnelSteps.map((step, index) => {
+            const width = (step.percentage / funnelSteps[0].percentage) * maxWidth;
+            const conversionFromPrevious = index > 0 ? 
+              (funnelSteps[index - 1].value > 0 ? (step.value / funnelSteps[index - 1].value * 100) : 0) : 100;
+            
+            return (
+              <div key={step.name} className="relative">
+                {/* Barra del embudo */}
+                <div className="relative">
+                  <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-16 flex items-center overflow-hidden">
+                    <div 
+                      className={`bg-gradient-to-r ${step.bgGradient} h-full rounded-full transition-all duration-1000 ease-out flex items-center justify-between px-6 shadow-lg`}
+                      style={{ width: `${Math.max(width, 8)}%` }}
+                    >
+                      <div className="flex items-center text-white font-bold">
+                        <span className="text-lg mr-3">{step.name.split(' ')[0]}</span>
+                        <span className="text-sm">{step.name.split(' ').slice(1).join(' ')}</span>
+                      </div>
+                      <div className="text-white font-bold text-lg">
+                        {step.value}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Etiquetas de porcentaje */}
+                  <div className="absolute -top-8 left-0 right-0 flex justify-between items-center">
+                    <div className={`text-sm font-medium ${step.textColor}`}>
+                      {step.percentage.toFixed(1)}% del total
+                    </div>
+                    {index > 0 && (
+                      <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        {conversionFromPrevious.toFixed(1)}% del paso anterior
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Línea de conexión */}
+                  {index < funnelSteps.length - 1 && (
+                    <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2">
+                      <div className="w-0.5 h-6 bg-gray-300 dark:bg-gray-600"></div>
+                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full -mt-1 -ml-0.5"></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Resumen de eficiencia */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {stats.totalEnviados > 0 ? ((stats.respondieron / stats.totalEnviados) * 100).toFixed(1) : 0}%
+              </div>
+              <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Tasa de Respuesta</div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {stats.totalEnviados > 0 ? ((stats.nuevasPagados / stats.totalEnviados) * 100).toFixed(1) : 0}%
+              </div>
+              <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Tasa de Conversión</div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                {stats.nuevasPagados > 0 ? ((stats.nuevosUpsells / stats.nuevasPagados) * 100).toFixed(1) : 0}%
+              </div>
+              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Tasa de Upsell</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Componente de Análisis Detallado
+  const DetailedAnalysis: React.FC<{ stats: any; estadosComparison: any }> = ({ stats, estadosComparison }) => {
+    const insights = [];
+    
+    // Análisis de respuesta
+    const responseRate = stats.totalEnviados > 0 ? (stats.respondieron / stats.totalEnviados * 100) : 0;
+    if (responseRate > 20) {
+      insights.push({
+        type: "success",
+        icon: "🎉",
+        title: "Excelente Engagement",
+        message: `Tu tasa de respuesta del ${responseRate.toFixed(1)}% está por encima del promedio (15-20%)`
+      });
+    } else if (responseRate > 10) {
+      insights.push({
+        type: "warning", 
+        icon: "⚡",
+        title: "Buen Rendimiento",
+        message: `Tasa de respuesta del ${responseRate.toFixed(1)}% es buena, pero hay margen de mejora`
+      });
+    } else if (responseRate > 0) {
+      insights.push({
+        type: "info",
+        icon: "📊",
+        title: "Oportunidad de Mejora",
+        message: `La tasa de respuesta del ${responseRate.toFixed(1)}% puede optimizarse mejorando el mensaje`
+      });
+    }
+
+    // Análisis de conversión
+    const conversionRate = stats.totalEnviados > 0 ? (stats.nuevasPagados / stats.totalEnviados * 100) : 0;
+    if (conversionRate > 5) {
+      insights.push({
+        type: "success",
+        icon: "💰",
+        title: "Alta Conversión",
+        message: `${conversionRate.toFixed(1)}% de conversión es excelente para marketing masivo`
+      });
+    } else if (conversionRate > 2) {
+      insights.push({
+        type: "warning",
+        icon: "📈", 
+        title: "Conversión Moderada",
+        message: `${conversionRate.toFixed(1)}% de conversión puede mejorarse con segmentación`
+      });
+    }
+
+    // Análisis de upsell
+    const upsellRate = stats.nuevasPagados > 0 ? (stats.nuevosUpsells / stats.nuevasPagados * 100) : 0;
+    if (upsellRate > 30) {
+      insights.push({
+        type: "success",
+        icon: "🚀",
+        title: "Upselling Efectivo",
+        message: `${upsellRate.toFixed(1)}% de tus clientes compraron productos adicionales`
+      });
+    } else if (stats.nuevasPagados > 0 && upsellRate === 0) {
+      insights.push({
+        type: "info",
+        icon: "💡",
+        title: "Potencial de Upsell",
+        message: "Considera implementar estrategias de venta cruzada para aumentar ingresos"
+      });
+    }
+
+    // Análisis de cambios de estado
+    const stateChangeRate = stats.totalEnviados > 0 ? (stats.cambiosEstado / stats.totalEnviados * 100) : 0;
+    if (stateChangeRate > 30) {
+      insights.push({
+        type: "success",
+        icon: "🔄",
+        title: "Alto Impacto",
+        message: `${stateChangeRate.toFixed(1)}% de usuarios cambiaron su estado tras la campaña`
+      });
+    }
+
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-100 dark:border-gray-700">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+          <Eye className="h-5 w-5 mr-2 text-indigo-600" />
+          Análisis e Insights
+        </h3>
+        
+        {insights.length > 0 ? (
+          <div className="space-y-4">
+            {insights.map((insight, index) => (
+              <div key={index} className={`p-4 rounded-xl border-l-4 ${
+                insight.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-500' :
+                insight.type === 'warning' ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500' :
+                'bg-blue-50 dark:bg-blue-900/20 border-blue-500'
+              }`}>
+                <div className="flex items-start">
+                  <span className="text-2xl mr-3">{insight.icon}</span>
+                  <div>
+                    <h4 className={`font-semibold ${
+                      insight.type === 'success' ? 'text-green-800 dark:text-green-200' :
+                      insight.type === 'warning' ? 'text-yellow-800 dark:text-yellow-200' :
+                      'text-blue-800 dark:text-blue-200'
+                    }`}>
+                      {insight.title}
+                    </h4>
+                    <p className={`text-sm mt-1 ${
+                      insight.type === 'success' ? 'text-green-700 dark:text-green-300' :
+                      insight.type === 'warning' ? 'text-yellow-700 dark:text-yellow-300' :
+                      'text-blue-700 dark:text-blue-300'
+                    }`}>
+                      {insight.message}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <div className="text-gray-400 text-4xl mb-2">🤔</div>
+            <p className="text-gray-500 dark:text-gray-400">No hay suficientes datos para generar insights</p>
+            <p className="text-xs text-gray-400 mt-1">Envía más campañas para obtener análisis detallados</p>
+          </div>
+        )}
+
+        {/* Mejores cambios de estado */}
+        {Object.keys(estadosComparison).length > 0 && (
+          <div className="mt-8">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              🏆 Principales Transiciones
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Object.entries(estadosComparison)
+                .sort(([,a], [,b]) => (b as number) - (a as number))
+                .slice(0, 6)
+                .map(([transition, count]) => (
+                  <div key={transition} className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{transition}</span>
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-gray-800 px-2 py-1 rounded-full text-xs">
+                        {count}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
@@ -290,7 +567,13 @@ const StatsPanel: React.FC = () => {
                 )}
               </div>
 
-              {/* Métricas principales */}
+              {/* Embudo de Conversión - Vista Principal */}
+              <ConversionFunnel stats={campaignStats.stats} />
+
+              {/* Análisis Detallado e Insights */}
+              <DetailedAnalysis stats={campaignStats.stats} estadosComparison={campaignStats.estadosComparison} />
+
+              {/* Métricas principales - Resumen Rápido */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                 <StatCard
                   icon={<Users className="h-6 w-6 text-white" />}
@@ -347,32 +630,7 @@ const StatsPanel: React.FC = () => {
                 </div>
               </div>
 
-              {/* Cambios de estado */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                  <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
-                  Cambios de Estado
-                </h3>
-                {Object.keys(campaignStats.estadosComparison).length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="text-gray-400 text-4xl mb-2">📊</div>
-                    <p className="text-gray-500 dark:text-gray-400">No se detectaron cambios de estado</p>
-                    <p className="text-xs text-gray-400 mt-1">Los usuarios mantuvieron sus estados iniciales</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {Object.entries(campaignStats.estadosComparison)
-                      .sort(([,a], [,b]) => b - a)
-                      .slice(0, 10)
-                      .map(([transition, count]) => (
-                        <div key={transition} className="flex justify-between items-center p-4 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-700 dark:to-blue-900/20 rounded-lg border border-gray-100 dark:border-gray-600">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{transition}</span>
-                          <span className="font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 px-3 py-1 rounded-full text-xs">{count}</span>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
+
 
               {/* Resumen de rendimiento */}
               <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-8 shadow-2xl">
