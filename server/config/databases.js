@@ -20,16 +20,3 @@ export const getAllDatabases = () => {
   }));
 };
 
-export const getDatabaseModel = async (dbConfig) => {
-  // Importar mongoose dinámicamente para evitar problemas de importación
-  const mongoose = await import('mongoose');
-  
-  // Crear un esquema flexible para cualquier colección
-  const flexibleSchema = new mongoose.Schema({}, { strict: false });
-  
-  // Usar la colección especificada en la configuración
-  const collectionName = dbConfig.collection || 'bot-win+4';
-  
-  // Crear y retornar el modelo
-  return mongoose.model('User', flexibleSchema, collectionName);
-};

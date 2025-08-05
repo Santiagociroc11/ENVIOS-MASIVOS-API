@@ -1,8 +1,62 @@
 import express from 'express';
 import CampaignStats from '../models/campaignStatsModel.js';
-import { getDatabase, getDatabaseModel } from '../config/databases.js';
+import { getDatabase } from '../config/databases.js';
+import { getDatabaseModel } from '../models/dynamicUserModel.js';
 
 const router = express.Router();
+
+// Ruta de prueba para debugging
+router.get('/test', async (req, res) => {
+  try {
+    console.log('🧪 Test route called');
+    
+    // Probar conexión a la base de datos
+    const count = await CampaignStats.countDocuments();
+    console.log(`📊 Total campaigns in DB: ${count}`);
+    
+    // Crear una campaña de prueba si no existe ninguna
+    if (count === 0) {
+      console.log('🔨 Creating test campaign...');
+      const testCampaign = new CampaignStats({
+        campaignId: 'test_campaign_123',
+        templateName: 'Test Template',
+        totalSent: 5,
+        usersSnapshot: [
+          {
+            whatsapp: '573001234567',
+            estadoInicial: 'bienvenida',
+            medioInicial: 'whatsapp',
+            enviado: true,
+            sourceDatabase: 'bot-win-4'
+          }
+        ],
+        databases: ['bot-win-4'],
+        sendingOrder: 'desc',
+        notes: 'Campaña de prueba'
+      });
+      
+      await testCampaign.save();
+      console.log('✅ Test campaign created');
+    }
+    
+    // Obtener todas las campañas
+    const campaigns = await CampaignStats.find().limit(5);
+    
+    res.json({
+      success: true,
+      message: 'Test successful',
+      totalCampaigns: count,
+      sampleCampaigns: campaigns
+    });
+    
+  } catch (error) {
+    console.error('❌ Test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // Crear nueva campaña de estadísticas
 router.post('/create', async (req, res) => {
@@ -107,9 +161,13 @@ router.post('/create', async (req, res) => {
 // Obtener todas las campañas
 router.get('/campaigns', async (req, res) => {
   try {
+    console.log('🔍 GET /campaigns - Fetching campaigns...');
+    
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
+
+    console.log(`📄 Page: ${page}, Limit: ${limit}, Skip: ${skip}`);
 
     const campaigns = await CampaignStats.find()
       .select('campaignId templateName sentAt totalSent databases notes')
@@ -118,6 +176,8 @@ router.get('/campaigns', async (req, res) => {
       .limit(limit);
 
     const total = await CampaignStats.countDocuments();
+
+    console.log(`📊 Found ${campaigns.length} campaigns, Total: ${total}`);
 
     res.json({
       campaigns,
@@ -130,7 +190,7 @@ router.get('/campaigns', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching campaigns:', error);
+    console.error('❌ Error fetching campaigns:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       details: error.message 
