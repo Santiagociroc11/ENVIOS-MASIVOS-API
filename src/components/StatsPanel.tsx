@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, Users, MessageCircle, CreditCard, Eye, Trash2, Calendar, Database } from 'lucide-react';
-import { fetchCampaignsList, fetchCampaignStats, deleteCampaignStats } from '../api/services';
+import { fetchCampaignsList, fetchCampaignStats, deleteCampaignStats, createCampaignStats } from '../api/services';
 
 interface Campaign {
   campaignId: string;
@@ -59,26 +59,18 @@ const StatsPanel: React.FC = () => {
         notes: 'Campaña de prueba manual desde frontend'
       };
       
-      const result = await fetch('http://localhost:5001/api/stats/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(testData)
-      });
+      const result = await createCampaignStats(testData);
+      console.log('🧪 Test campaign result:', result);
       
-      const data = await result.json();
-      console.log('🧪 Test campaign result:', data);
-      
-      if (data.success) {
+      if (result.success) {
         alert('✅ Campaña de prueba creada exitosamente');
         loadCampaigns(); // Recargar lista
       } else {
-        alert('❌ Error al crear campaña de prueba: ' + data.error);
+        alert('❌ Error al crear campaña de prueba: ' + (result.error || 'Error desconocido'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error creating test campaign:', error);
-      alert('❌ Error al crear campaña de prueba');
+      alert('❌ Error al crear campaña de prueba: ' + (error.message || 'Error desconocido'));
     }
   };
 
