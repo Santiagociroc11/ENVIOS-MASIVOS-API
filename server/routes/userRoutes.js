@@ -120,13 +120,6 @@ router.get('/pending', async (req, res) => {
     // Get order parameter (asc or desc)
     const order = req.query.order === 'asc' ? 1 : -1;
     
-    // Get sort field parameter (ingreso or medio_at)
-    const sortBy = req.query.sortBy || 'medio_at';
-    const validSortFields = ['ingreso', 'medio_at'];
-    const sortField = validSortFields.includes(sortBy) ? sortBy : 'medio_at';
-    
-    console.log(`📊 Ordenando por: ${sortField} (${order === 1 ? 'ascendente' : 'descendente'})`);
-    
     if (dbKeys.length === 0) {
       return res.status(400).json({ error: 'At least one database must be specified' });
     }
@@ -151,18 +144,13 @@ router.get('/pending', async (req, res) => {
         // Get the appropriate model for this database
         const UserModel = await getDatabaseModel(dbConfig);
         
-        // Build query - Solo números colombianos que empiecen con 57
+        // Build query
         let query = UserModel.find({
-          whatsapp: { 
-            $exists: true, 
-            $ne: null, 
-            $ne: "",
-            $regex: /^57\d{10}$/  // Solo números que empiecen con 57 y tengan 12 dígitos total
-          }
+          whatsapp: { $exists: true, $ne: null, $ne: "" }
         })
-        .select('whatsapp estado medio medio_at ingreso enviado _id') // Select all needed fields including ingreso
+        .select('whatsapp estado medio medio_at enviado _id') // Only select needed fields
         .lean() // Use lean() for better performance
-        .sort({ [sortField]: order }); // Dynamic sort field
+        .sort({ medio_at: order });
         
         // Apply pagination only if not loading all
         if (!loadAll) {
@@ -171,21 +159,14 @@ router.get('/pending', async (req, res) => {
         
         const users = await query.exec();
         
-        // Get total count for this database (for pagination info) - Solo números colombianos
+        // Get total count for this database (for pagination info)
         const totalCount = await UserModel.countDocuments({
-          whatsapp: { 
-            $exists: true, 
-            $ne: null, 
-            $ne: "",
-            $regex: /^57\d{10}$/  // Solo números que empiecen con 57
-          }
+          whatsapp: { $exists: true, $ne: null, $ne: "" }
         });
         
-        // Add database source to each user for tracking y remover prefijo 57
+        // Add database source to each user for tracking
         const usersWithSource = users.map(user => ({
           ...user,
-          whatsapp: user.whatsapp.startsWith('57') ? user.whatsapp.substring(2) : user.whatsapp, // Remover prefijo 57
-          whatsapp_original: user.whatsapp, // Conservar número original para envíos
           _sourceDatabase: dbKey,
           _sourceCollection: dbConfig.collection
         }));
@@ -202,10 +183,10 @@ router.get('/pending', async (req, res) => {
       }
     }
     
-    // Sort all users by the selected field based on order parameter
+    // Sort all users by medio_at based on order parameter
     allUsers.sort((a, b) => order === 1 
-      ? (a[sortField] || 0) - (b[sortField] || 0)  // asc: oldest first
-      : (b[sortField] || 0) - (a[sortField] || 0)  // desc: newest first
+      ? (a.medio_at || 0) - (b.medio_at || 0)  // asc: oldest first
+      : (b.medio_at || 0) - (a.medio_at || 0)  // desc: newest first
     );
     
     res.json({

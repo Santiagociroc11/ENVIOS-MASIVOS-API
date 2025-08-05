@@ -47,8 +47,6 @@ interface StepByStepSendingProps {
   onRefresh: () => void;
   sendingOrder: 'asc' | 'desc';
   setSendingOrder: (order: 'asc' | 'desc') => void;
-  sortBy: 'ingreso' | 'medio_at';
-  setSortBy: (sortBy: 'ingreso' | 'medio_at') => void;
   
   // Pagination props
   pagination: any;
@@ -81,8 +79,6 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
   onRefresh,
   sendingOrder,
   setSendingOrder,
-  sortBy,
-  setSortBy,
   pagination,
   loadingAll,
   users,
@@ -313,8 +309,6 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
             isSending={isSending}
             sendingOrder={sendingOrder}
             setSendingOrder={setSendingOrder}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
           />
 
           <UserList 
