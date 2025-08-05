@@ -44,6 +44,7 @@ function App() {
   const [quantity, setQuantity] = useState<number>(100);
   const [loadingAll, setLoadingAll] = useState<boolean>(false);
   const [sendingOrder, setSendingOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState<'ingreso' | 'medio_at'>('medio_at');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isSending, setIsSending] = useState<boolean>(false);
   const [sentCount, setSentCount] = useState<number>(0);
@@ -80,7 +81,7 @@ function App() {
         setTemplates(templatesData);
         
         if (selectedDatabases.length > 0) {
-          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder);
+          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder, sortBy);
           setUsers(response.users);
           setFilteredUsers(response.users);
           setPagination(response.pagination);
@@ -104,7 +105,7 @@ function App() {
     };
 
     loadInitialData();
-  }, [selectedDatabases, currentPage, quantity, sendingOrder]);
+  }, [selectedDatabases, currentPage, quantity, sendingOrder, sortBy]);
 
   // Filter users based on search term and filters
   useEffect(() => {
@@ -199,7 +200,7 @@ function App() {
     
     try {
       if (selectedDatabases.length > 0) {
-        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder);
+        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder, sortBy);
         setUsers(response.users);
         setFilteredUsers(response.users);
         setPagination(response.pagination);
@@ -535,7 +536,7 @@ function App() {
     
     setLoading(true);
     try {
-      const response = await fetchFilteredUsers(selectedDatabases, currentPage + 1, quantity, false, sendingOrder);
+      const response = await fetchFilteredUsers(selectedDatabases, currentPage + 1, quantity, false, sendingOrder, sortBy);
       setUsers(prev => [...prev, ...response.users]);
       setFilteredUsers(prev => [...prev, ...response.users]);
       setCurrentPage(prev => prev + 1);
@@ -650,6 +651,8 @@ function App() {
             onRefresh={handleRefresh}
             sendingOrder={sendingOrder}
             setSendingOrder={setSendingOrder}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
             pagination={pagination}
             loadingAll={loadingAll}
             users={users}
