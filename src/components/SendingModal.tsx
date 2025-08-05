@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Send, CheckCircle2, AlertCircle, Clock, Zap } from 'lucide-react';
+import React from "react";
+import { X, Send, CheckCircle2, AlertCircle, Clock, Zap } from "lucide-react";
 
 interface SendingResult {
   phoneNumber: string;
@@ -41,21 +41,21 @@ const SendingModal: React.FC<SendingModalProps> = ({
   onCancel,
   sendingSpeed,
   onSpeedChange,
-  templateName
+  templateName,
 }) => {
   if (!isOpen) return null;
 
   const progress = totalUsers > 0 ? (currentIndex / totalUsers) * 100 : 0;
   const speedOptions = [
-    { value: 500, label: '🐌 Lento (2 seg)', delay: 2000 },
-    { value: 1000, label: '🚶 Normal (1 seg)', delay: 1000 },
-    { value: 1500, label: '🏃 Rápido (0.5 seg)', delay: 500 },
-    { value: 2000, label: '⚡ Muy Rápido (0.2 seg)', delay: 200 }
+    { value: 500, label: "🐌 Lento (2 seg)", delay: 2000 },
+    { value: 1000, label: "🚶 Normal (1 seg)", delay: 1000 },
+    { value: 1500, label: "🏃 Rápido (0.5 seg)", delay: 500 },
+    { value: 2000, label: "⚡ Muy Rápido (0.2 seg)", delay: 200 },
   ];
 
   const getSpeedLabel = () => {
-    const option = speedOptions.find(opt => opt.value === sendingSpeed);
-    return option?.label || '🚶 Normal';
+    const option = speedOptions.find((opt) => opt.value === sendingSpeed);
+    return option?.label || "🚶 Normal";
   };
 
   return (
@@ -70,7 +70,9 @@ const SendingModal: React.FC<SendingModalProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-bold">📤 Enviando Mensajes</h2>
-                <p className="text-blue-100 text-sm">Plantilla: {templateName}</p>
+                <p className="text-blue-100 text-sm">
+                  Plantilla: {templateName}
+                </p>
               </div>
             </div>
             {isCompleted && (
@@ -90,33 +92,49 @@ const SendingModal: React.FC<SendingModalProps> = ({
             <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-xl">
               <div className="flex items-center space-x-2">
                 <Send className="w-5 h-5 text-blue-600" />
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total</span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Total
+                </span>
               </div>
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalUsers}</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {totalUsers}
+              </p>
             </div>
-            
+
             <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-4 rounded-xl">
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Exitosos</span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Exitosos
+                </span>
               </div>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{successCount}</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {successCount}
+              </p>
             </div>
-            
+
             <div className="bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 p-4 rounded-xl">
               <div className="flex items-center space-x-2">
                 <AlertCircle className="w-5 h-5 text-red-600" />
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Errores</span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Errores
+                </span>
               </div>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{errorCount}</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                {errorCount}
+              </p>
             </div>
-            
+
             <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-4 rounded-xl">
               <div className="flex items-center space-x-2">
                 <Clock className="w-5 h-5 text-purple-600" />
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Progreso</span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Progreso
+                </span>
               </div>
-              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{Math.round(progress)}%</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {Math.round(progress)}%
+              </p>
             </div>
           </div>
 
@@ -124,10 +142,12 @@ const SendingModal: React.FC<SendingModalProps> = ({
           <div className="mb-6">
             <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-2">
               <span>Progreso del Envío</span>
-              <span>{currentIndex} / {totalUsers}</span>
+              <span>
+                {currentIndex} / {totalUsers}
+              </span>
             </div>
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-              <div 
+              <div
                 className="bg-gradient-to-r from-blue-500 to-purple-500 h-4 rounded-full transition-all duration-500 relative overflow-hidden"
                 style={{ width: `${progress}%` }}
               >
@@ -142,10 +162,14 @@ const SendingModal: React.FC<SendingModalProps> = ({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
               <Zap className="w-5 h-5 text-yellow-500" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Velocidad de Envío:</span>
-              <span className="text-sm font-bold text-purple-600 dark:text-purple-400">{getSpeedLabel()}</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Velocidad de Envío:
+              </span>
+              <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
+                {getSpeedLabel()}
+              </span>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               {speedOptions.map((option) => (
                 <button
@@ -154,11 +178,11 @@ const SendingModal: React.FC<SendingModalProps> = ({
                   disabled={isCompleted}
                   className={`px-3 py-1 text-xs rounded-lg transition-all ${
                     sendingSpeed === option.value
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
                   }`}
                 >
-                  {option.label.split(' ')[0]}
+                  {option.label.split(" ")[0]}
                 </button>
               ))}
             </div>
@@ -184,7 +208,7 @@ const SendingModal: React.FC<SendingModalProps> = ({
                   Pausar
                 </button>
               )}
-              
+
               <button
                 onClick={onCancel}
                 className="flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
@@ -198,12 +222,17 @@ const SendingModal: React.FC<SendingModalProps> = ({
 
         {/* Results Section */}
         <div className="p-6 max-h-96 overflow-y-auto">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">📋 Resultados Detallados</h3>
-          
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            📋 Resultados Detallados
+          </h3>
+
           {results.length === 0 ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               <Send className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p>Los resultados aparecerán aquí conforme se envíen los mensajes...</p>
+              <p>
+                Los resultados aparecerán aquí conforme se envíen los
+                mensajes...
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -212,8 +241,8 @@ const SendingModal: React.FC<SendingModalProps> = ({
                   key={index}
                   className={`flex items-center justify-between p-3 rounded-lg border ${
                     result.success
-                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                      : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                      ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                      : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
                   }`}
                 >
                   <div className="flex items-center space-x-3">
@@ -226,7 +255,13 @@ const SendingModal: React.FC<SendingModalProps> = ({
                       <p className="font-medium text-gray-900 dark:text-white">
                         {result.phoneNumber}
                       </p>
-                                                                  {result.error && (                        <div className="text-sm text-red-600 dark:text-red-400 mt-1">                          <p className="font-medium">Error:</p>                          <p className="break-words">{result.error}</p>                        </div>                      )}
+                      {result.error && (
+                        <div className="text-sm text-red-600 dark:text-red-400 mt-1">
+                          {" "}
+                          <p className="font-medium">Error:</p>{" "}
+                          <p className="break-words">{result.error}</p>{" "}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -262,4 +297,4 @@ const SendingModal: React.FC<SendingModalProps> = ({
   );
 };
 
-export default SendingModal; 
+export default SendingModal;

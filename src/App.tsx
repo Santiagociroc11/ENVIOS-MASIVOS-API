@@ -349,7 +349,7 @@ function App() {
         if (result.success) {
           localSuccessCount++;
           setSuccessCount(localSuccessCount);
-          await markMessageSent(user.whatsapp, selectedDatabases);
+          await markMessageSent(user.whatsapp, selectedDatabases, selectedTemplate.name);
         } else {
           localErrorCount++;
           setErrorCount(localErrorCount);

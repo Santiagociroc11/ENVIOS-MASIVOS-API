@@ -215,15 +215,25 @@ export const sendTemplateMessage = async (phoneNumber: string, templateName: str
   }
 };
 
-export const markMessageSent = async (phoneNumber: string, databases?: string[]): Promise<boolean> => {
+export const markMessageSent = async (phoneNumber: string, databases?: string[], templateName?: string): Promise<boolean> => {
   try {
+    console.log('🎯 === MARCANDO COMO ENVIADO (NUEVA ESTRATEGIA BD4) ===');
+    console.log('📱 Número:', phoneNumber);
+    console.log('📋 Plantilla:', templateName);
+    console.log('🗄️ Bases de Datos (ignoradas):', databases);
+    console.log('🎯 Estrategia: Centralizar en BD4');
+    console.log('===============================================');
+    
     const response = await axios.post(`${API_BASE_URL}/users/mark-sent`, {
       phoneNumber,
-      databases
+      databases,      // Se envía pero se ignora en el backend
+      templateName    // ⭐ NUEVO: Nombre de la plantilla enviada
     });
+    
+    console.log('✅ Respuesta BD4:', response.data);
     return response.data.success;
   } catch (error) {
-    console.error('Error marking message as sent:', error);
+    console.error('❌ Error marking message as sent:', error);
     return false;
   }
 };

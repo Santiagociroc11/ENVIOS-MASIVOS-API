@@ -211,73 +211,127 @@ router.get('/pending', async (req, res) => {
   }
 });
 
-// Mark message as sent
+// Mark message as sent (NEW UNIFIED BD4 STRATEGY)
 router.post('/mark-sent', async (req, res) => {
   try {
-    const { phoneNumber, databases } = req.body;
-    
-    // Get database configurations
-    const dbKeys = databases || ['bot-win-2'];
-    const dbKeysArray = Array.isArray(dbKeys) ? dbKeys : [dbKeys];
+    const { phoneNumber, databases, templateName } = req.body;
     
     if (!phoneNumber) {
       return res.status(400).json({ error: 'Phone number is required' });
     }
     
-    let updateResults = [];
+    console.log('🎯 === NUEVA ESTRATEGIA BD4 UNIFICADA ===');
+    console.log('📱 Número:', phoneNumber);
+    console.log('📋 Plantilla:', templateName);
+    console.log('🗄️ Estrategia: Centralizar en BD4');
+    console.log('=======================================');
     
-    // Update the user in all relevant databases
-    for (const dbKey of dbKeysArray) {
-      const dbConfig = getDatabase(dbKey);
-      
-      if (!dbConfig) {
-        console.warn(`Database ${dbKey} not found, skipping...`);
-        continue;
-      }
-      
-      try {
-        // Get the appropriate model for this database
-        const UserModel = await getDatabaseModel(dbConfig);
-        
-        const result = await UserModel.updateOne(
-          { whatsapp: phoneNumber },
-          { $set: { enviado: true } }
-        );
-        
-        updateResults.push({
-          database: dbKey,
-          success: result.modifiedCount > 0,
-          modifiedCount: result.modifiedCount
-        });
-        
-      } catch (dbError) {
-        console.error(`Error updating user in database ${dbKey}:`, dbError);
-        updateResults.push({
-          database: dbKey,
-          success: false,
-          error: dbError.message
-        });
-      }
-    }
+    // ESTRATEGIA: Siempre usar BD4 como base principal
+    const bd4Config = getDatabase('bot-win-4'); // Asumiendo que BD4 se llama 'bot-win-4'
     
-    // Check if at least one update was successful
-    const hasSuccess = updateResults.some(result => result.success);
-    
-    if (!hasSuccess) {
-      return res.status(404).json({ 
-        error: 'User not found in any of the selected databases',
-        details: updateResults
+    if (!bd4Config) {
+      console.error('❌ BD4 no encontrada - Configurar bot-win-4 en databases.js');
+      return res.status(500).json({ 
+        error: 'BD4 (bot-win-4) not configured',
+        details: 'La base de datos principal BD4 debe estar configurada' 
       });
     }
-
-    res.json({ 
-      success: true,
-      updateResults
-    });
+    
+    try {
+      // Get BD4 model
+      const BD4UserModel = await getDatabaseModel(bd4Config);
+      
+      // Buscar si el usuario ya existe en BD4
+      const existingUser = await BD4UserModel.findOne({ whatsapp: phoneNumber });
+      
+      const currentTimestamp = Math.floor(Date.now() / 1000); // Unix timestamp
+      
+      if (existingUser) {
+        // ✅ CASO 1: Usuario YA existe en BD4 - ACTUALIZAR
+        console.log('✅ Usuario encontrado en BD4 - Actualizando...');
+        
+        const updateData = {
+          enviado: true,
+          plantilla_enviada: templateName || 'plantilla-desconocida',
+          plantilla_at: currentTimestamp,
+          estado: 'masivos-api'
+        };
+        
+        const result = await BD4UserModel.updateOne(
+          { whatsapp: phoneNumber },
+          { $set: updateData }
+        );
+        
+        console.log('📝 Usuario actualizado en BD4:', {
+          phoneNumber,
+          modifiedCount: result.modifiedCount,
+          updateData
+        });
+        
+        res.json({ 
+          success: true,
+          strategy: 'updated_existing_user',
+          database: 'BD4',
+          action: 'Usuario existente actualizado en BD4',
+          updateResults: [{
+            database: 'BD4',
+            success: result.modifiedCount > 0,
+            modifiedCount: result.modifiedCount,
+            userData: updateData
+          }]
+        });
+        
+      } else {
+        // 🆕 CASO 2: Usuario NO existe en BD4 - CREAR NUEVO
+        console.log('🆕 Usuario NO encontrado en BD4 - Creando nuevo...');
+        
+        const newUserData = {
+          whatsapp: phoneNumber,
+          estado: 'masivos-api',           // Marca que vino de API masiva
+          ingreso: currentTimestamp,       // Timestamp de cuando entró al sistema
+          enviado: true,
+          plantilla_enviada: templateName || 'plantilla-desconocida',
+          plantilla_at: currentTimestamp,
+          // Campos adicionales por defecto
+          nombre: 'Usuario Masivos',
+          medio: 'whatsapp-masivos'
+        };
+        
+        const newUser = new BD4UserModel(newUserData);
+        await newUser.save();
+        
+        console.log('🎉 Nuevo usuario creado en BD4:', {
+          phoneNumber,
+          userData: newUserData
+        });
+        
+        res.json({ 
+          success: true,
+          strategy: 'created_new_user',
+          database: 'BD4',
+          action: 'Nuevo usuario creado en BD4',
+          updateResults: [{
+            database: 'BD4',
+            success: true,
+            modifiedCount: 1,
+            userData: newUserData,
+            isNewUser: true
+          }]
+        });
+      }
+      
+    } catch (bd4Error) {
+      console.error('❌ Error procesando BD4:', bd4Error);
+      return res.status(500).json({ 
+        error: 'Failed to process user in BD4',
+        details: bd4Error.message 
+      });
+    }
+    
   } catch (error) {
-    console.error('Error marking message as sent:', error);
+    console.error('❌ Error general marking message as sent:', error);
     res.status(500).json({ 
-      error: 'Failed to update user',
+      error: 'Failed to update user with new BD4 strategy',
       details: error.message 
     });
   }
