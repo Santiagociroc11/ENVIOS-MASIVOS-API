@@ -131,128 +131,133 @@ const StatsPanel: React.FC = () => {
       </div>
     );
 
-  // Componente de Embudo de Conversión
+  // Componente de Embudo de Conversión - Diseño Limpio y Profesional
   const ConversionFunnel: React.FC<{ stats: any }> = ({ stats }) => {
     const funnelSteps = [
       {
-        name: "📤 Mensajes Enviados",
+        label: "Mensajes Enviados",
         value: stats.totalEnviados,
         percentage: 100,
-        color: "bg-blue-500",
-        textColor: "text-blue-600",
-        bgGradient: "from-blue-400 to-blue-600"
+        description: "Total de mensajes enviados en la campaña"
       },
       {
-        name: "💬 Respondieron",
+        label: "Respondieron",
         value: stats.respondieron,
         percentage: stats.totalEnviados > 0 ? (stats.respondieron / stats.totalEnviados * 100) : 0,
-        color: "bg-green-500",
-        textColor: "text-green-600",
-        bgGradient: "from-green-400 to-green-600"
+        description: "Usuarios que interactuaron después del envío"
       },
       {
-        name: "💳 Compraron",
+        label: "Compraron",
         value: stats.nuevasPagados,
         percentage: stats.totalEnviados > 0 ? (stats.nuevasPagados / stats.totalEnviados * 100) : 0,
-        color: "bg-purple-500",
-        textColor: "text-purple-600",
-        bgGradient: "from-purple-400 to-purple-600"
+        description: "Usuarios que realizaron una compra"
       },
       {
-        name: "🚀 Con Upsell",
+        label: "Con Upsell",
         value: stats.nuevosUpsells,
         percentage: stats.totalEnviados > 0 ? (stats.nuevosUpsells / stats.totalEnviados * 100) : 0,
-        color: "bg-orange-500",
-        textColor: "text-orange-600",
-        bgGradient: "from-orange-400 to-orange-600"
+        description: "Usuarios que compraron productos adicionales"
       }
     ];
-
-    const maxWidth = 100; // Porcentaje máximo del ancho
     
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700">
-        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-          <TrendingUp className="h-6 w-6 mr-2 text-indigo-600" />
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
           Embudo de Conversión
         </h3>
         
-        <div className="space-y-6">
+        <div className="space-y-8">
           {funnelSteps.map((step, index) => {
-            const width = (step.percentage / funnelSteps[0].percentage) * maxWidth;
-            const conversionFromPrevious = index > 0 ? 
+            const dropRate = index > 0 ? 
+              (funnelSteps[index - 1].value > 0 ? 
+                ((funnelSteps[index - 1].value - step.value) / funnelSteps[index - 1].value * 100) : 0) : 0;
+            
+            const conversionRate = index > 0 ? 
               (funnelSteps[index - 1].value > 0 ? (step.value / funnelSteps[index - 1].value * 100) : 0) : 100;
             
             return (
-              <div key={step.name} className="relative">
-                {/* Barra del embudo */}
-                <div className="relative">
-                  <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-16 flex items-center overflow-hidden">
-                    <div 
-                      className={`bg-gradient-to-r ${step.bgGradient} h-full rounded-full transition-all duration-1000 ease-out flex items-center justify-between px-6 shadow-lg`}
-                      style={{ width: `${Math.max(width, 8)}%` }}
-                    >
-                      <div className="flex items-center text-white font-bold">
-                        <span className="text-lg mr-3">{step.name.split(' ')[0]}</span>
-                        <span className="text-sm">{step.name.split(' ').slice(1).join(' ')}</span>
-                      </div>
-                      <div className="text-white font-bold text-lg">
-                        {step.value}
-                      </div>
+              <div key={step.label} className="relative">
+                {/* Paso del embudo */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-sm font-medium text-gray-600 dark:text-gray-300">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-white">{step.label}</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{step.description}</p>
                     </div>
                   </div>
                   
-                  {/* Etiquetas de porcentaje */}
-                  <div className="absolute -top-8 left-0 right-0 flex justify-between items-center">
-                    <div className={`text-sm font-medium ${step.textColor}`}>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {step.value.toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       {step.percentage.toFixed(1)}% del total
                     </div>
                     {index > 0 && (
-                      <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        {conversionFromPrevious.toFixed(1)}% del paso anterior
+                      <div className="text-xs text-gray-400 dark:text-gray-500">
+                        {conversionRate.toFixed(1)}% del paso anterior
                       </div>
                     )}
                   </div>
-                  
-                  {/* Línea de conexión */}
-                  {index < funnelSteps.length - 1 && (
-                    <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2">
-                      <div className="w-0.5 h-6 bg-gray-300 dark:bg-gray-600"></div>
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full -mt-1 -ml-0.5"></div>
-                    </div>
-                  )}
                 </div>
+                
+                {/* Barra de progreso */}
+                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-3 mb-4">
+                  <div 
+                    className="bg-blue-500 h-3 rounded-full transition-all duration-700 ease-out"
+                    style={{ width: `${step.percentage}%` }}
+                  ></div>
+                </div>
+                
+                {/* Tasa de abandono */}
+                {index > 0 && dropRate > 0 && (
+                  <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border-l-4 border-red-400">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-red-700 dark:text-red-300">
+                        ⚠️ Pérdida en este paso:
+                      </span>
+                      <span className="font-medium text-red-800 dark:text-red-200">
+                        {dropRate.toFixed(1)}% ({(funnelSteps[index - 1].value - step.value).toLocaleString()} usuarios)
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Flecha de conexión */}
+                {index < funnelSteps.length - 1 && (
+                  <div className="flex justify-center mb-2">
+                    <div className="w-0.5 h-4 bg-gray-300 dark:bg-gray-600"></div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
         
-        {/* Resumen de eficiencia */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+        {/* Resumen final */}
+        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <h4 className="font-medium text-gray-900 dark:text-white mb-4">Resumen de Conversión</h4>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
                 {stats.totalEnviados > 0 ? ((stats.respondieron / stats.totalEnviados) * 100).toFixed(1) : 0}%
               </div>
-              <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Tasa de Respuesta</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Tasa de Respuesta</div>
             </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
                 {stats.totalEnviados > 0 ? ((stats.nuevasPagados / stats.totalEnviados) * 100).toFixed(1) : 0}%
               </div>
-              <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Tasa de Conversión</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Tasa de Conversión</div>
             </div>
-          </div>
-          
-          <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+            <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
                 {stats.nuevasPagados > 0 ? ((stats.nuevosUpsells / stats.nuevasPagados) * 100).toFixed(1) : 0}%
               </div>
-              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Tasa de Upsell</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Tasa de Upsell</div>
             </div>
           </div>
         </div>
