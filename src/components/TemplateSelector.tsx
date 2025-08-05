@@ -72,9 +72,10 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
         </div>
       </div>
 
-          {/* WhatsApp Preview */}
-          <div className="mt-6">
-            <div className="flex items-center space-x-2 mb-4">
+      {selectedTemplate && (
+        <div className="flex justify-center">
+          <div className="w-full max-w-md">
+            <div className="flex items-center justify-center space-x-2 mb-4">
               <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
                 <span className="text-white text-sm">📱</span>
               </div>
