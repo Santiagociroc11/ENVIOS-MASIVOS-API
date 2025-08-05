@@ -68,7 +68,8 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
       { value: 'less_than', label: 'es menor que' }
     ],
     enviado: [
-      { value: 'equals', label: 'es igual a' }
+      { value: 'equals', label: 'es igual a' },
+      { value: 'not_equals', label: 'no es igual a' }
     ]
   };
 
