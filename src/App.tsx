@@ -300,12 +300,12 @@ function App() {
     }
     
     // Create campaign first
-    const campaignName = `${selectedTemplate.name} - ${new Date().toLocaleDateString()}`;
+    const campaignName = `${selectedTemplate.templateName} - ${new Date().toLocaleDateString()}`;
     console.log('📋 Creating campaign with name:', campaignName);
     
     const campaign = await createCampaign(
       campaignName,
-      selectedTemplate.name,
+      selectedTemplate.templateName,
       selectedTemplate.language || 'es',
       selectedDatabases
     );
@@ -346,7 +346,7 @@ function App() {
       setCurrentSendingIndex(i + 1);
       
       try {
-        const result = await sendTemplateMessage(user.whatsapp, selectedTemplate.name, selectedDatabases);
+        const result = await sendTemplateMessage(user.whatsapp, selectedTemplate.templateName, selectedDatabases);
         
         // Add user to campaign
         if (currentCampaignId) {
@@ -373,7 +373,7 @@ function App() {
         if (result.success) {
           localSuccessCount++;
           setSuccessCount(localSuccessCount);
-          await markMessageSent(user.whatsapp, selectedDatabases, selectedTemplate.name);
+          await markMessageSent(user.whatsapp, selectedDatabases, selectedTemplate.templateName);
         } else {
           localErrorCount++;
           setErrorCount(localErrorCount);

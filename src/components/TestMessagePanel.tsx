@@ -31,7 +31,7 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
 
     console.log('🧪 Iniciando Envío de Prueba...');
     console.log('📱 Número:', testNumber.trim());
-    console.log('📋 Plantilla:', selectedTemplate.name);
+    console.log('📋 Plantilla:', selectedTemplate.templateName);
     console.log('🗄️ Bases de Datos:', selectedDatabases);
     console.log('🎯 Template Completo:', selectedTemplate);
 
@@ -184,7 +184,7 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
             </div>
             {selectedTemplate && (
               <p className="text-xs text-gray-600 dark:text-gray-300">
-                📋 {selectedTemplate.name}
+                📋 {selectedTemplate.templateName}
               </p>
             )}
           </div>
