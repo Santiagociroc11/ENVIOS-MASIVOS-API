@@ -120,6 +120,9 @@ router.get('/pending', async (req, res) => {
     // Get order parameter (asc or desc)
     const order = req.query.order === 'asc' ? 1 : -1;
     
+    // Get sort criteria parameter (ingreso or medio_at)
+    const sortBy = req.query.sortBy || 'medio_at';
+    
     if (dbKeys.length === 0) {
       return res.status(400).json({ error: 'At least one database must be specified' });
     }
@@ -144,13 +147,16 @@ router.get('/pending', async (req, res) => {
         // Get the appropriate model for this database
         const UserModel = await getDatabaseModel(dbConfig);
         
-        // Build query
+        // Build query with dynamic sort field
+        const sortObject = {};
+        sortObject[sortBy] = order;
+        
         let query = UserModel.find({
           whatsapp: { $exists: true, $ne: null, $ne: "" }
         })
-        .select('whatsapp estado medio medio_at enviado _id') // Only select needed fields
+        .select('whatsapp estado medio medio_at ingreso enviado _id') // Include ingreso field
         .lean() // Use lean() for better performance
-        .sort({ medio_at: order });
+        .sort(sortObject);
         
         // Apply pagination only if not loading all
         if (!loadAll) {
@@ -183,11 +189,15 @@ router.get('/pending', async (req, res) => {
       }
     }
     
-    // Sort all users by medio_at based on order parameter
-    allUsers.sort((a, b) => order === 1 
-      ? (a.medio_at || 0) - (b.medio_at || 0)  // asc: oldest first
-      : (b.medio_at || 0) - (a.medio_at || 0)  // desc: newest first
-    );
+    // Sort all users by selected criteria based on order parameter
+    allUsers.sort((a, b) => {
+      const valueA = a[sortBy] || 0;
+      const valueB = b[sortBy] || 0;
+      
+      return order === 1 
+        ? valueA - valueB  // asc: oldest first
+        : valueB - valueA  // desc: newest first
+    });
     
     res.json({
       users: allUsers,

@@ -34,7 +34,7 @@ export const fetchConfiguredTemplates = async (): Promise<ConfiguredTemplate[]> 
     return [];
   }
 };
-export const fetchFilteredUsers = async (databases?: string[], page: number = 1, limit: number = 50, loadAll: boolean = false, order: 'asc' | 'desc' = 'desc'): Promise<{ users: User[]; database: string; collection: string; count: number; pagination?: any }> => {
+export const fetchFilteredUsers = async (databases?: string[], page: number = 1, limit: number = 50, loadAll: boolean = false, order: 'asc' | 'desc' = 'desc', sortBy: 'ingreso' | 'medio_at' = 'medio_at'): Promise<{ users: User[]; database: string; collection: string; count: number; pagination?: any }> => {
   try {
     const params = new URLSearchParams();
     if (databases && databases.length > 0) {
@@ -48,15 +48,17 @@ export const fetchFilteredUsers = async (databases?: string[], page: number = 1,
       params.append('limit', limit.toString());
     }
     
-    // Add order parameter
+    // Add order and sort criteria parameters
     params.append('order', order);
+    params.append('sortBy', sortBy);
     
     const url = `${API_BASE_URL}/users/pending?${params.toString()}`;
-    console.log(`🔗 Fetching ${loadAll ? 'ALL' : limit} users (${order === 'desc' ? 'newest first' : 'oldest first'}) from:`, url);
+    const sortCriteriaLabel = sortBy === 'ingreso' ? 'fecha de registro' : 'fecha de pago';
+    console.log(`🔗 Fetching ${loadAll ? 'ALL' : limit} users (${order === 'desc' ? 'newest first' : 'oldest first'} by ${sortCriteriaLabel}) from:`, url);
     
     const response = await axios.get(url);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching users:', error);
     return { users: [], database: '', collection: '', count: 0, pagination: null };
   }

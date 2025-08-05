@@ -12,6 +12,8 @@ interface SendingPanelProps {
   isSending: boolean;
   sendingOrder: 'asc' | 'desc';
   setSendingOrder: (order: 'asc' | 'desc') => void;
+  sortCriteria: 'ingreso' | 'medio_at';
+  setSortCriteria: (criteria: 'ingreso' | 'medio_at') => void;
 }
 
 const SendingPanel: React.FC<SendingPanelProps> = ({
@@ -23,7 +25,9 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
   onSelectAll,
   isSending,
   sendingOrder,
-  setSendingOrder
+  setSendingOrder,
+  sortCriteria,
+  setSortCriteria
 }) => {
   return (
     <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-gray-700 dark:to-gray-600 p-6 rounded-2xl mb-6 border border-emerald-200 dark:border-gray-500 shadow-lg">
@@ -68,23 +72,82 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
           
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              Orden de Envío
+              📊 Configuración de Ordenamiento
             </label>
-            <div className="relative">
-              <select
-                value={sendingOrder}
-                onChange={(e) => setSendingOrder(e.target.value as 'asc' | 'desc')}
-                className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm appearance-none"
-                disabled={isSending}
-              >
-                <option value="desc">📅 Más Recientes Primero</option>
-                <option value="asc">📅 Más Antiguos Primero</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+            
+            {/* Criterio de Ordenamiento */}
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                Ordenar por:
+              </label>
+              <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setSortCriteria('medio_at')}
+                  disabled={isSending}
+                  className={`px-3 py-2 text-xs font-medium rounded-md transition-all ${
+                    sortCriteria === 'medio_at'
+                      ? 'bg-emerald-500 text-white shadow-md'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
+                >
+                  💳 Fecha de Pago
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortCriteria('ingreso')}
+                  disabled={isSending}
+                  className={`px-3 py-2 text-xs font-medium rounded-md transition-all ${
+                    sortCriteria === 'ingreso'
+                      ? 'bg-emerald-500 text-white shadow-md'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
+                >
+                  📝 Fecha de Registro
+                </button>
               </div>
+            </div>
+            
+            {/* Dirección de Ordenamiento */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                Dirección:
+              </label>
+              <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setSendingOrder('desc')}
+                  disabled={isSending}
+                  className={`px-3 py-2 text-xs font-medium rounded-md transition-all ${
+                    sendingOrder === 'desc'
+                      ? 'bg-blue-500 text-white shadow-md'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
+                >
+                  ⬇️ Más Recientes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSendingOrder('asc')}
+                  disabled={isSending}
+                  className={`px-3 py-2 text-xs font-medium rounded-md transition-all ${
+                    sendingOrder === 'asc'
+                      ? 'bg-blue-500 text-white shadow-md'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
+                >
+                  ⬆️ Más Antiguos
+                </button>
+              </div>
+            </div>
+            
+            {/* Descripción del Ordenamiento Actual */}
+            <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+              <p className="text-xs text-amber-800 dark:text-amber-200">
+                <span className="font-medium">🎯 Ordenando por:</span>{' '}
+                {sortCriteria === 'medio_at' ? 'Fecha de Pago' : 'Fecha de Registro'}{' '}
+                ({sendingOrder === 'desc' ? 'más recientes primero' : 'más antiguos primero'})
+              </p>
             </div>
           </div>
           

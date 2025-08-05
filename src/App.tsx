@@ -44,6 +44,7 @@ function App() {
   const [quantity, setQuantity] = useState<number>(100);
   const [loadingAll, setLoadingAll] = useState<boolean>(false);
   const [sendingOrder, setSendingOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortCriteria, setSortCriteria] = useState<'ingreso' | 'medio_at'>('medio_at');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isSending, setIsSending] = useState<boolean>(false);
   const [sentCount, setSentCount] = useState<number>(0);
@@ -80,7 +81,7 @@ function App() {
         setTemplates(templatesData);
         
         if (selectedDatabases.length > 0) {
-          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder);
+          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder, sortCriteria);
           setUsers(response.users);
           setFilteredUsers(response.users);
           setPagination(response.pagination);
@@ -104,7 +105,7 @@ function App() {
     };
 
     loadInitialData();
-  }, [selectedDatabases, currentPage, quantity, sendingOrder]);
+  }, [selectedDatabases, currentPage, quantity, sendingOrder, sortCriteria]);
 
   // Filter users based on search term and filters
   useEffect(() => {
@@ -156,18 +157,18 @@ function App() {
       });
     }
     
-    // Apply sorting
+    // Apply sorting based on selected criteria
     filtered = filtered.sort((a, b) => {
-      const timeA = a.medio_at || 0;
-      const timeB = b.medio_at || 0;
+      const valueA = a[sortCriteria] || 0;
+      const valueB = b[sortCriteria] || 0;
       
       return sendingOrder === 'asc' 
-        ? timeA - timeB 
-        : timeB - timeA;
+        ? valueA - valueB 
+        : valueB - valueA;
     });
     
     setFilteredUsers(filtered);
-  }, [users, searchTerm, advancedFilters, sendingOrder]);
+  }, [users, searchTerm, advancedFilters, sendingOrder, sortCriteria]);
 
   // Helper function to evaluate individual filter
   const evaluateFilter = (user: User, filter: FilterCondition): boolean => {
@@ -199,7 +200,7 @@ function App() {
     
     try {
       if (selectedDatabases.length > 0) {
-        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder);
+        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder, sortCriteria);
         setUsers(response.users);
         setFilteredUsers(response.users);
         setPagination(response.pagination);
@@ -331,16 +332,16 @@ function App() {
       console.log('📊 Databases:', selectedDatabases);
       console.log('📊 Sending order:', sendingOrder);
       
-      const statsResult = await createCampaignStats({
+      const statsResult =       await createCampaignStats({
         templateName: selectedTemplate.templateName,
         usersList: usersToMessage,
         databases: selectedDatabases,
         sendingOrder: sendingOrder,
-        notes: `Envío automático - ${usersToMessage.length} usuarios`
+        notes: `Envío automático - ${usersToMessage.length} usuarios (ordenados por ${sortCriteria === 'ingreso' ? 'fecha de registro' : 'fecha de pago'})`
       });
       
       console.log('✅ Campaign stats created successfully:', statsResult);
-    } catch (statsError) {
+    } catch (statsError: any) {
       console.error('⚠️ Error creating campaign stats (continuing with send):', statsError);
       console.error('⚠️ Stats error details:', statsError.response?.data);
       // No detener el envío si falla la creación de estadísticas
@@ -535,7 +536,7 @@ function App() {
     
     setLoading(true);
     try {
-      const response = await fetchFilteredUsers(selectedDatabases, currentPage + 1, quantity, false, sendingOrder);
+      const response = await fetchFilteredUsers(selectedDatabases, currentPage + 1, quantity, false, sendingOrder, sortCriteria);
       setUsers(prev => [...prev, ...response.users]);
       setFilteredUsers(prev => [...prev, ...response.users]);
       setCurrentPage(prev => prev + 1);
@@ -650,6 +651,8 @@ function App() {
             onRefresh={handleRefresh}
             sendingOrder={sendingOrder}
             setSendingOrder={setSendingOrder}
+            sortCriteria={sortCriteria}
+            setSortCriteria={setSortCriteria}
             pagination={pagination}
             loadingAll={loadingAll}
             users={users}
