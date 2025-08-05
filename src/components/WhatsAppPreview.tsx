@@ -17,6 +17,98 @@ const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ configuredTemplate })
     return processedText;
   };
 
+  // Format WhatsApp text styles (bold, italic, strikethrough, monospace)
+  const formatWhatsAppText = (text: string) => {
+    const parts: Array<{ text: string; bold?: boolean; italic?: boolean; strikethrough?: boolean; monospace?: boolean }> = [];
+    let currentText = text;
+    let index = 0;
+
+    while (index < currentText.length) {
+      // Bold: *text*
+      const boldMatch = currentText.substring(index).match(/^\*([^*]+)\*/);
+      if (boldMatch) {
+        if (index > 0) {
+          parts.push({ text: currentText.substring(0, index) });
+          currentText = currentText.substring(index);
+          index = 0;
+        }
+        parts.push({ text: boldMatch[1], bold: true });
+        currentText = currentText.substring(boldMatch[0].length);
+        continue;
+      }
+
+      // Italic: _text_
+      const italicMatch = currentText.substring(index).match(/^_([^_]+)_/);
+      if (italicMatch) {
+        if (index > 0) {
+          parts.push({ text: currentText.substring(0, index) });
+          currentText = currentText.substring(index);
+          index = 0;
+        }
+        parts.push({ text: italicMatch[1], italic: true });
+        currentText = currentText.substring(italicMatch[0].length);
+        continue;
+      }
+
+      // Strikethrough: ~text~
+      const strikeMatch = currentText.substring(index).match(/^~([^~]+)~/);
+      if (strikeMatch) {
+        if (index > 0) {
+          parts.push({ text: currentText.substring(0, index) });
+          currentText = currentText.substring(index);
+          index = 0;
+        }
+        parts.push({ text: strikeMatch[1], strikethrough: true });
+        currentText = currentText.substring(strikeMatch[0].length);
+        continue;
+      }
+
+      // Monospace: ```text```
+      const monoMatch = currentText.substring(index).match(/^```([^`]+)```/);
+      if (monoMatch) {
+        if (index > 0) {
+          parts.push({ text: currentText.substring(0, index) });
+          currentText = currentText.substring(index);
+          index = 0;
+        }
+        parts.push({ text: monoMatch[1], monospace: true });
+        currentText = currentText.substring(monoMatch[0].length);
+        continue;
+      }
+
+      index++;
+    }
+
+    if (currentText) {
+      parts.push({ text: currentText });
+    }
+
+    return parts;
+  };
+
+  // Render formatted text
+  const renderFormattedText = (text: string, className: string = "") => {
+    const parts = formatWhatsAppText(text);
+    
+    return (
+      <span className={className}>
+        {parts.map((part, index) => (
+          <span
+            key={index}
+            className={`
+              ${part.bold ? 'font-bold' : ''}
+              ${part.italic ? 'italic' : ''}
+              ${part.strikethrough ? 'line-through' : ''}
+              ${part.monospace ? 'font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs' : ''}
+            `.trim()}
+          >
+            {part.text}
+          </span>
+        ))}
+      </span>
+    );
+  };
+
   // Render header component
   const renderHeader = () => {
     if (!configuredTemplate.components) return null;
@@ -42,22 +134,46 @@ const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ configuredTemplate })
           )}
           
           {configuredTemplate.mediaType === 'video' && (
-            <div className="relative rounded-lg overflow-hidden bg-gray-900 aspect-video flex items-center justify-center">
-              <Play className="w-12 h-12 text-white opacity-80" />
-              <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                🎥 Video
+            <div className="relative rounded-lg overflow-hidden bg-gray-900 aspect-video">
+              <video 
+                src={configuredTemplate.mediaUrl}
+                className="w-full h-full object-cover"
+                controls
+                preload="metadata"
+                onError={(e) => {
+                  // Fallback to play icon if video fails to load
+                  (e.target as HTMLVideoElement).style.display = 'none';
+                  const fallback = (e.target as HTMLVideoElement).nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-900" style={{ display: 'none' }}>
+                <Play className="w-12 h-12 text-white opacity-80" />
+                <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                  🎥 Video no disponible
+                </div>
               </div>
             </div>
           )}
           
           {configuredTemplate.mediaType === 'document' && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center space-x-3">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center space-x-3">
               <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
                 <Download className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Documento</p>
-                <p className="text-xs text-gray-500">Archivo adjunto</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Documento</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {configuredTemplate.mediaUrl?.split('/').pop()?.split('.').pop()?.toUpperCase() || 'Archivo'} adjunto
+                </p>
+                <a 
+                  href={configuredTemplate.mediaUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Ver documento
+                </a>
               </div>
             </div>
           )}
@@ -70,7 +186,7 @@ const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ configuredTemplate })
       const headerText = processTemplateText(headerComponent.text, configuredTemplate.headerText);
       return (
         <div className="mb-3">
-          <p className="font-semibold text-gray-900 text-sm">{headerText}</p>
+          {renderFormattedText(headerText, "font-semibold text-gray-900 dark:text-white text-sm")}
         </div>
       );
     }
@@ -93,7 +209,9 @@ const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ configuredTemplate })
 
     return (
       <div className="mb-3">
-        <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-line">{bodyText}</p>
+        <div className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-line">
+          {renderFormattedText(bodyText)}
+        </div>
       </div>
     );
   };
@@ -107,7 +225,7 @@ const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ configuredTemplate })
 
     return (
       <div className="mb-3">
-        <p className="text-gray-500 text-xs">{footerComponent.text}</p>
+        {renderFormattedText(footerComponent.text, "text-gray-500 dark:text-gray-400 text-xs")}
       </div>
     );
   };
@@ -129,7 +247,7 @@ const WhatsAppPreview: React.FC<WhatsAppPreviewProps> = ({ configuredTemplate })
             {button.type === 'QUICK_REPLY' && <MessageCircle className="w-4 h-4" />}
             {button.type === 'PHONE_NUMBER' && <Phone className="w-4 h-4" />}
             {button.type === 'URL' && <ExternalLink className="w-4 h-4" />}
-            <span>{button.text}</span>
+            {renderFormattedText(button.text)}
           </button>
         ))}
       </div>
