@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Phone, CheckCircle2, AlertCircle, Loader } from 'lucide-react';
 import { ConfiguredTemplate } from '../types';
-import { sendTemplateMessage } from '../api/services';
+import { sendTestTemplateMessage } from '../api/services';
 
 interface TestMessagePanelProps {
   selectedTemplate: ConfiguredTemplate | null;
@@ -39,7 +39,7 @@ const TestMessagePanel: React.FC<TestMessagePanelProps> = ({
     setTestResult(null);
 
     try {
-      const result = await sendTemplateMessage(testNumber.trim(), selectedTemplate.templateName, selectedDatabases);
+      const result = await sendTestTemplateMessage(testNumber.trim(), selectedTemplate.templateName);
       
       console.log('📤 Resultado del Envío:', result);
       

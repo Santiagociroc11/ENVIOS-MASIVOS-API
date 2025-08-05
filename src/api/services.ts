@@ -95,6 +95,67 @@ export const fetchMedios = async (databases?: string[]): Promise<string[]> => {
   }
 };
 
+export const sendTestTemplateMessage = async (phoneNumber: string, templateName: string): Promise<{ success: boolean; error?: string; messageId?: string; diagnostics?: any; whatsappResponse?: any }> => {
+  try {
+    console.log('🧪 === FRONTEND: ENVIANDO MENSAJE DE PRUEBA ===');
+    console.log('📱 Número:', phoneNumber);
+    console.log('📋 Plantilla:', templateName);
+    console.log('🌐 URL del API:', `${API_BASE_URL}/messages/send-test`);
+    
+    const requestBody = {
+      phoneNumber,
+      templateName
+    };
+    
+    console.log('📦 Request Body que se enviará:');
+    console.log(JSON.stringify(requestBody, null, 2));
+    console.log('=====================================');
+    
+    const response = await axios.post(`${API_BASE_URL}/messages/send-test`, {
+      phoneNumber,
+      templateName
+    });
+    
+    console.log('✅ === FRONTEND: RESPUESTA RECIBIDA (PRUEBA) ===');
+    console.log('📊 Status:', response.status);
+    console.log('📦 Response Data:');
+    console.log(JSON.stringify(response.data, null, 2));
+    console.log('=====================================');
+    
+    return { 
+      success: response.data.success,
+      messageId: response.data.messageId,
+      diagnostics: response.data.diagnostics,
+      whatsappResponse: response.data.whatsappResponse
+    };
+  } catch (error: any) {
+    console.error('Error sending test template message:', error);
+    
+    console.log('❌ === FRONTEND: ERROR DETALLADO (PRUEBA) ===');
+    console.log('🚨 Error completo:', error);
+    console.log('📊 Response Status:', error.response?.status);
+    console.log('📦 Response Data:');
+    console.log(JSON.stringify(error.response?.data, null, 2));
+    console.log('🔗 Request URL:', error.config?.url);
+    console.log('📤 Request Data:', error.config?.data);
+    console.log('==================================');
+    
+    // Extract detailed error message from server response
+    let errorMessage = 'Error desconocido';
+    
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
+    } else if (error.response?.data?.details) {
+      errorMessage = error.response.data.details;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    console.log('📱 Error detallado:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+};
+
 export const sendTemplateMessage = async (phoneNumber: string, templateName: string, databases?: string[]): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🚀 === FRONTEND: ENVIANDO MENSAJE ===');
