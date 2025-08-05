@@ -45,6 +45,8 @@ interface StepByStepSendingProps {
   onSendMessages: () => void;
   isSending: boolean;
   onRefresh: () => void;
+  sendingOrder: 'asc' | 'desc';
+  setSendingOrder: (order: 'asc' | 'desc') => void;
   
   // Pagination props
   pagination: any;
@@ -75,6 +77,8 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
   onSendMessages,
   isSending,
   onRefresh,
+  sendingOrder,
+  setSendingOrder,
   pagination,
   loadingAll,
   users,
@@ -303,6 +307,8 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
             onSendMessages={onSendMessages}
             onSelectAll={onToggleSelectAll}
             isSending={isSending}
+            sendingOrder={sendingOrder}
+            setSendingOrder={setSendingOrder}
           />
 
           <UserList 

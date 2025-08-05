@@ -32,7 +32,7 @@ type TabType = 'send' | 'campaigns' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('send');
-  const [selectedDatabases, setSelectedDatabases] = useState<string[]>(['bot-win', 'bot-win-2', 'bot-win-3', 'bot-win-4']);
+  const [selectedDatabases, setSelectedDatabases] = useState<string[]>(['bot-win-4']); // ✅ Solo BD4 - Base Unificada
   const [databaseInfo, setDatabaseInfo] = useState<any>(null);
   const [templates, setTemplates] = useState<ConfiguredTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<ConfiguredTemplate | null>(null);
@@ -303,12 +303,12 @@ function App() {
     const campaignName = `${selectedTemplate.templateName} - ${new Date().toLocaleDateString()}`;
     console.log('📋 Creating campaign with name:', campaignName);
     
-    const campaign = await createCampaign(
-      campaignName,
-      selectedTemplate.templateName,
-      selectedTemplate.language || 'es',
-      selectedDatabases
-    );
+         const campaign = await createCampaign(
+       campaignName,
+       selectedTemplate.templateName,
+       selectedTemplate.language || 'es',
+       ['bot-win-4'] // BD4 unificada - todas las campañas usan BD4
+     );
     
     if (!campaign) {
       console.error('❌ Failed to create campaign');
@@ -371,7 +371,7 @@ function App() {
       
       try {
         console.log('🚀 Enviando mensaje via WhatsApp API...');
-        const result = await sendTemplateMessage(user.whatsapp, selectedTemplate.templateName, selectedDatabases);
+                 const result = await sendTemplateMessage(user.whatsapp, selectedTemplate.templateName, ['bot-win-4']); // BD4 unificada
         console.log('📤 Resultado sendTemplateMessage:', result);
         
         // Add user to campaign
@@ -382,21 +382,21 @@ function App() {
           const campaignData = {
             campaignId: currentCampaignId,
             whatsapp: user.whatsapp,
-            database: user._sourceDatabase || selectedDatabases[0],
+                         database: 'bot-win-4', // BD4 unificada
             status: result.success ? 'sent' : 'failed',
             messageId: result.success ? 'message-id' : undefined,
             error: result.error
           };
           console.log('📋 Datos para campaña:', campaignData);
           
-          const campaignResult = await addUserToCampaign(
-            currentCampaignId,
-            user.whatsapp,
-            user._sourceDatabase || selectedDatabases[0],
-            result.success ? 'sent' : 'failed',
-            result.success ? 'message-id' : undefined,
-            result.error
-          );
+                     const campaignResult = await addUserToCampaign(
+             currentCampaignId,
+             user.whatsapp,
+             'bot-win-4', // BD4 unificada - todos los usuarios están aquí
+             result.success ? 'sent' : 'failed',
+             result.success ? 'message-id' : undefined,
+             result.error
+           );
           console.log('✅ Resultado addUserToCampaign:', campaignResult);
         } else {
           console.error('❌ NO CAMPAIGN ID - Cannot add user to campaign');
@@ -415,7 +415,7 @@ function App() {
         if (result.success) {
           localSuccessCount++;
           setSuccessCount(localSuccessCount);
-          await markMessageSent(user.whatsapp, selectedDatabases, selectedTemplate.templateName);
+                     await markMessageSent(user.whatsapp, [], selectedTemplate.templateName); // BD4 unificada - databases ya no necesario
         } else {
           localErrorCount++;
           setErrorCount(localErrorCount);
@@ -433,14 +433,14 @@ function App() {
         
         // Add failed user to campaign
         if (currentCampaignId) {
-          await addUserToCampaign(
-            currentCampaignId,
-            user.whatsapp,
-            user._sourceDatabase || selectedDatabases[0],
-            'failed',
-            undefined,
-            'Error de conexión'
-          );
+                     await addUserToCampaign(
+             currentCampaignId,
+             user.whatsapp,
+             'bot-win-4', // BD4 unificada - todos los usuarios están aquí
+             'failed',
+             undefined,
+             'Error de conexión'
+           );
         }
         
         setSendingResults([...localResults]);
@@ -616,6 +616,8 @@ function App() {
             onSendMessages={handleSendMessages}
             isSending={isSending}
             onRefresh={handleRefresh}
+            sendingOrder={sendingOrder}
+            setSendingOrder={setSendingOrder}
             pagination={pagination}
             loadingAll={loadingAll}
             users={users}
@@ -656,7 +658,7 @@ function App() {
         onCancel={handleCancelSending}
         sendingSpeed={sendingSpeed}
         onSpeedChange={handleSpeedChange}
-        templateName={selectedTemplate?.name || ''}
+                 templateName={selectedTemplate?.templateName || ''}
       />
     </div>
   );

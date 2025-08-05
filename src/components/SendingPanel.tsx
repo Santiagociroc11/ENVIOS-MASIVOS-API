@@ -10,6 +10,8 @@ interface SendingPanelProps {
   onSendMessages: () => void;
   onSelectAll: () => void;
   isSending: boolean;
+  sendingOrder: 'asc' | 'desc';
+  setSendingOrder: (order: 'asc' | 'desc') => void;
 }
 
 const SendingPanel: React.FC<SendingPanelProps> = ({
@@ -19,7 +21,9 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
   selectedCount,
   onSendMessages,
   onSelectAll,
-  isSending
+  isSending,
+  sendingOrder,
+  setSendingOrder
 }) => {
   return (
     <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-gray-700 dark:to-gray-600 p-6 rounded-2xl mb-6 border border-emerald-200 dark:border-gray-500 shadow-lg">
@@ -53,6 +57,28 @@ const SendingPanel: React.FC<SendingPanelProps> = ({
                 <option value={1000}>1,000 usuarios</option>
                 <option value={2500}>2,500 usuarios</option>
                 <option value={-1}>TODOS los usuarios</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              Orden de Envío
+            </label>
+            <div className="relative">
+              <select
+                value={sendingOrder}
+                onChange={(e) => setSendingOrder(e.target.value as 'asc' | 'desc')}
+                className="block w-full rounded-xl border-gray-300 shadow-lg focus:border-emerald-500 focus:ring-emerald-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white py-3 px-4 text-sm appearance-none"
+                disabled={isSending}
+              >
+                <option value="desc">📅 Más Recientes Primero</option>
+                <option value="asc">📅 Más Antiguos Primero</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

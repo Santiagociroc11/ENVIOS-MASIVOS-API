@@ -217,20 +217,19 @@ export const sendTemplateMessage = async (phoneNumber: string, templateName: str
 
 export const markMessageSent = async (phoneNumber: string, databases?: string[], templateName?: string): Promise<boolean> => {
   try {
-    console.log('🎯 === MARCANDO COMO ENVIADO (NUEVA ESTRATEGIA BD4) ===');
+    console.log('🎯 === MARCANDO COMO ENVIADO (BD4 UNIFICADA) ===');
     console.log('📱 Número:', phoneNumber);
     console.log('📋 Plantilla:', templateName);
-    console.log('🗄️ Bases de Datos (ignoradas):', databases);
-    console.log('🎯 Estrategia: Centralizar en BD4');
+    console.log('🗄️ Base: BD4 (única base, parámetro databases ignorado)');
     console.log('===============================================');
     
     const response = await axios.post(`${API_BASE_URL}/users/mark-sent`, {
       phoneNumber,
-      databases,      // Se envía pero se ignora en el backend
-      templateName    // ⭐ NUEVO: Nombre de la plantilla enviada
+      templateName    // Solo necesitamos phoneNumber y templateName
+      // databases NO se envía - innecesario con BD única
     });
     
-    console.log('✅ Respuesta BD4:', response.data);
+    console.log('✅ Respuesta BD4 unificada:', response.data);
     return response.data.success;
   } catch (error) {
     console.error('❌ Error marking message as sent:', error);

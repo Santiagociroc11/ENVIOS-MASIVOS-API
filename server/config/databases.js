@@ -10,7 +10,7 @@ export const databases = {
 };
 
 export const getDatabase = (dbKey) => {
-  return databases[dbKey] || databases['bot-win-2']; // Default fallback to WIN+2
+  return databases[dbKey] || databases['bot-win-4']; // Default fallback to WIN+4 (única BD)
 };
 
 export const getAllDatabases = () => {
