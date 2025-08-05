@@ -261,15 +261,39 @@ export const fetchCampaignDetails = async (campaignId: string) => {
 
 export const createCampaign = async (name: string, templateName: string, templateLanguage: string, databases: string[]) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/campaigns`, {
+    console.log('🎯 === FRONTEND: CREANDO CAMPAÑA ===');
+    console.log('📋 Campaign name:', name);
+    console.log('📋 Template name:', templateName);
+    console.log('🌍 Template language:', templateLanguage);
+    console.log('🗄️ Databases:', databases);
+    console.log('🌐 API URL:', `${API_BASE_URL}/campaigns`);
+    
+    const requestData = {
       name,
       templateName,
       templateLanguage,
       databases
-    });
+    };
+    console.log('📦 Request data:', JSON.stringify(requestData, null, 2));
+    
+    const response = await axios.post(`${API_BASE_URL}/campaigns`, requestData);
+    
+    console.log('✅ Campaign created successfully:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error creating campaign:', error);
+    console.error('❌ === ERROR CREATING CAMPAIGN ===');
+    console.error('📄 Error details:', error);
+    
+    if (error.response) {
+      console.error('📊 Response status:', error.response.status);
+      console.error('📦 Response data:', error.response.data);
+      console.error('📋 Response headers:', error.response.headers);
+    } else if (error.request) {
+      console.error('📡 Request made but no response:', error.request);
+    } else {
+      console.error('📄 Error message:', error.message);
+    }
+    
     return null;
   }
 };

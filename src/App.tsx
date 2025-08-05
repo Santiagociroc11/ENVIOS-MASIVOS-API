@@ -276,19 +276,43 @@ function App() {
   };
 
   const handleSendMessages = async () => {
-    if (!selectedTemplate || selectedUsers.length === 0) return;
+    console.log('🚀 === INICIANDO ENVÍO DE MENSAJES ===');
+    console.log('📋 Selected template:', selectedTemplate);
+    console.log('👥 Selected users count:', selectedUsers.length);
+    console.log('🗄️ Selected databases:', selectedDatabases);
+    
+    if (!selectedTemplate) {
+      console.error('❌ No template selected');
+      alert('❌ Por favor selecciona una plantilla antes de enviar');
+      return;
+    }
+    
+    if (selectedUsers.length === 0) {
+      console.error('❌ No users selected');
+      alert('❌ Por favor selecciona al menos un usuario');
+      return;
+    }
+    
+    if (!selectedDatabases || selectedDatabases.length === 0) {
+      console.error('❌ No databases selected');
+      alert('❌ Por favor selecciona al menos una base de datos');
+      return;
+    }
     
     // Create campaign first
     const campaignName = `${selectedTemplate.name} - ${new Date().toLocaleDateString()}`;
+    console.log('📋 Creating campaign with name:', campaignName);
+    
     const campaign = await createCampaign(
       campaignName,
       selectedTemplate.name,
-      selectedTemplate.language,
+      selectedTemplate.language || 'es',
       selectedDatabases
     );
     
     if (!campaign) {
-      console.error('Failed to create campaign');
+      console.error('❌ Failed to create campaign');
+      alert('❌ Error al crear la campaña. Revisa los logs para más detalles.');
       return;
     }
     

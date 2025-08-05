@@ -88,16 +88,50 @@ router.get('/:campaignId/details', async (req, res) => {
 // Create new campaign
 router.post('/', async (req, res) => {
   try {
+    console.log('🎯 === CREANDO NUEVA CAMPAÑA ===');
+    console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
+    
     const { name, templateName, templateLanguage, databases } = req.body;
     
-    const campaign = new Campaign({
+    // Validar datos requeridos
+    if (!name) {
+      console.error('❌ Error: name is required');
+      return res.status(400).json({ 
+        error: 'Campaign name is required',
+        details: 'El nombre de la campaña es obligatorio' 
+      });
+    }
+    
+    if (!templateName) {
+      console.error('❌ Error: templateName is required');
+      return res.status(400).json({ 
+        error: 'Template name is required',
+        details: 'El nombre de la plantilla es obligatorio' 
+      });
+    }
+    
+    if (!databases || (Array.isArray(databases) && databases.length === 0)) {
+      console.error('❌ Error: databases is required');
+      return res.status(400).json({ 
+        error: 'At least one database is required',
+        details: 'Al menos una base de datos es requerida' 
+      });
+    }
+    
+    const campaignData = {
       name,
       templateName,
       templateLanguage: templateLanguage || 'es',
       databases: Array.isArray(databases) ? databases : [databases]
-    });
+    };
     
+    console.log('📋 Campaign data to save:', JSON.stringify(campaignData, null, 2));
+    
+    const campaign = new Campaign(campaignData);
+    
+    console.log('💾 Guardando campaña en MongoDB...');
     await campaign.save();
+    console.log('✅ Campaña guardada exitosamente:', campaign._id);
     
     res.json({ 
       success: true, 
@@ -105,10 +139,33 @@ router.post('/', async (req, res) => {
       campaign 
     });
   } catch (error) {
-    console.error('Error creating campaign:', error);
+    console.error('❌ === ERROR CREANDO CAMPAÑA ===');
+    console.error('📄 Error name:', error.name);
+    console.error('📄 Error message:', error.message);
+    console.error('📄 Error stack:', error.stack);
+    
+    // Manejo específico de errores de MongoDB
+    if (error.name === 'ValidationError') {
+      console.error('🚨 MongoDB Validation Error:', error.errors);
+      return res.status(400).json({ 
+        error: 'Campaign validation failed',
+        details: error.message,
+        validationErrors: error.errors
+      });
+    }
+    
+    if (error.name === 'MongoError' || error.name === 'MongoServerError') {
+      console.error('🚨 MongoDB Connection/Server Error:', error);
+      return res.status(503).json({ 
+        error: 'Database connection error',
+        details: 'Error de conexión con la base de datos'
+      });
+    }
+    
     res.status(500).json({ 
       error: 'Failed to create campaign',
-      details: error.message 
+      details: error.message,
+      errorType: error.name
     });
   }
 });
