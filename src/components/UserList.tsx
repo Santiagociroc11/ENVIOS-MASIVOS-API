@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User } from '../types';
 import { formatDistanceToNow } from '../utils/dateUtils';
 
@@ -6,9 +6,14 @@ interface UserListProps {
   users: User[];
   selectedUsers: string[];
   onToggleSelection: (whatsapp: string) => void;
+  onToggleSelectAll: () => void;
+  allUsersSelected: boolean;
 }
 
-const UserList: React.FC<UserListProps> = ({ users, selectedUsers, onToggleSelection }) => {
+const UserList: React.FC<UserListProps> = ({ users, selectedUsers, onToggleSelection, onToggleSelectAll, allUsersSelected }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 5;
+
   if (users.length === 0) {
     return (
       <div className="text-center py-12">
@@ -23,6 +28,25 @@ const UserList: React.FC<UserListProps> = ({ users, selectedUsers, onToggleSelec
     );
   }
 
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = users.slice(indexOfFirstUser, indexOfLastUser);
+
+  const totalPages = Math.ceil(users.length / usersPerPage);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+
   return (
     <div className="overflow-hidden mt-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200/20">
       <div className="overflow-x-auto">
@@ -31,7 +55,12 @@ const UserList: React.FC<UserListProps> = ({ users, selectedUsers, onToggleSelec
             <tr>
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                 <div className="flex items-center space-x-2">
-                  <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                    onChange={onToggleSelectAll}
+                    checked={allUsersSelected}
+                  />
                   <span>Seleccionar</span>
                 </div>
               </th>
@@ -53,7 +82,7 @@ const UserList: React.FC<UserListProps> = ({ users, selectedUsers, onToggleSelec
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-700">
-            {users.map((user, index) => (
+            {currentUsers.map((user, index) => (
               <tr key={user._id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-gray-800 dark:hover:to-gray-700 transition-all duration-200">
                 <td className="px-6 py-5 whitespace-nowrap">
                   <input
@@ -70,7 +99,7 @@ const UserList: React.FC<UserListProps> = ({ users, selectedUsers, onToggleSelec
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-gray-900 dark:text-white">{user.whatsapp}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">#{index + 1}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">#{indexOfFirstUser + index + 1}</div>
                     </div>
                   </div>
                 </td>
@@ -120,6 +149,30 @@ const UserList: React.FC<UserListProps> = ({ users, selectedUsers, onToggleSelec
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Mostrando <span className="font-bold">{indexOfFirstUser + 1}</span> a <span className="font-bold">{Math.min(indexOfLastUser, users.length)}</span> de <span className="font-bold">{users.length}</span> usuarios
+        </div>
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={handlePrevPage} 
+            disabled={currentPage === 1}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
+          >
+            Anterior
+          </button>
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            Página <span className="font-bold">{currentPage}</span> de <span className="font-bold">{totalPages}</span>
+          </span>
+          <button 
+            onClick={handleNextPage} 
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
+          >
+            Siguiente
+          </button>
+        </div>
       </div>
     </div>
   );

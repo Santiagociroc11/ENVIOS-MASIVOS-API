@@ -28,7 +28,8 @@ interface StepByStepSendingProps {
   filteredUsers: User[];
   selectedUsers: string[];
   onToggleSelection: (whatsapp: string) => void;
-  onSelectAll: () => void;
+  onToggleSelectAll: () => void;
+  allUsersSelected: boolean;
   
   // Search and filters
   searchTerm: string;
@@ -61,7 +62,8 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
   filteredUsers,
   selectedUsers,
   onToggleSelection,
-  onSelectAll,
+  onToggleSelectAll,
+  allUsersSelected,
   searchTerm,
   onSearchChange,
   availableEstados,
@@ -303,14 +305,16 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
             selectedTemplate={selectedTemplate}
             selectedCount={selectedUsers.length}
             onSendMessages={onSendMessages}
-            onSelectAll={onSelectAll}
+            onSelectAll={onToggleSelectAll}
             isSending={isSending}
           />
 
           <UserList 
-            users={filteredUsers.slice(0, quantity)}
+            users={filteredUsers}
             selectedUsers={selectedUsers}
             onToggleSelection={onToggleSelection}
+            onToggleSelectAll={onToggleSelectAll}
+            allUsersSelected={allUsersSelected}
           />
           
           {pagination?.hasMore && !loadingAll && quantity !== -1 && (
