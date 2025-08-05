@@ -238,11 +238,11 @@ function App() {
     }
   }, [templates]);
 
-  const handleSelectAll = () => {
-    if (selectedUsers.length === filteredUsers.slice(0, quantity).length) {
+  const handleToggleSelectAll = () => {
+    if (selectedUsers.length === filteredUsers.length) {
       setSelectedUsers([]);
     } else {
-      setSelectedUsers(filteredUsers.slice(0, quantity).map(user => user.whatsapp));
+      setSelectedUsers(filteredUsers.map(user => user.whatsapp));
     }
   };
 
@@ -443,6 +443,8 @@ function App() {
     }
   };
 
+  const allUsersSelected = selectedUsers.length > 0 && selectedUsers.length === filteredUsers.length;
+
   const tabs = [
     { id: 'send', label: 'Enviar Mensajes', icon: Send, color: 'from-blue-500 to-purple-500' },
     { id: 'templates', label: 'Gestión de Plantillas', icon: MessageSquare, color: 'from-green-500 to-emerald-500' },
@@ -528,7 +530,8 @@ function App() {
             filteredUsers={filteredUsers}
             selectedUsers={selectedUsers}
             onToggleSelection={toggleUserSelection}
-            onSelectAll={handleSelectAll}
+            onToggleSelectAll={handleToggleSelectAll}
+            allUsersSelected={allUsersSelected}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             availableEstados={availableEstados}
