@@ -61,6 +61,9 @@ router.get('/test', async (req, res) => {
 // Crear nueva campaña de estadísticas
 router.post('/create', async (req, res) => {
   try {
+    console.log('📊 POST /create - Creating campaign stats...');
+    console.log('📦 Request body:', req.body);
+    
     const { 
       templateName, 
       usersList, 
@@ -68,6 +71,8 @@ router.post('/create', async (req, res) => {
       sendingOrder = 'desc',
       notes = ''
     } = req.body;
+    
+    console.log('📊 Parsed data:', { templateName, usersList: usersList?.length, databases, sendingOrder, notes });
 
     if (!templateName || !usersList || !Array.isArray(usersList)) {
       return res.status(400).json({ 

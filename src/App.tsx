@@ -326,16 +326,23 @@ function App() {
         selectedUsers.includes(user.whatsapp)
       );
       
-      await createCampaignStats({
+      console.log('📊 Users to track:', usersToMessage.length);
+      console.log('📊 Template:', selectedTemplate.templateName);
+      console.log('📊 Databases:', selectedDatabases);
+      console.log('📊 Sending order:', sendingOrder);
+      
+      const statsResult = await createCampaignStats({
         templateName: selectedTemplate.templateName,
         usersList: usersToMessage,
         databases: selectedDatabases,
         sendingOrder: sendingOrder,
         notes: `Envío automático - ${usersToMessage.length} usuarios`
       });
-      console.log('✅ Campaign stats created successfully');
+      
+      console.log('✅ Campaign stats created successfully:', statsResult);
     } catch (statsError) {
       console.error('⚠️ Error creating campaign stats (continuing with send):', statsError);
+      console.error('⚠️ Stats error details:', statsError.response?.data);
       // No detener el envío si falla la creación de estadísticas
     }
     console.log('🆔 Campaign ID:', campaign.campaignId);

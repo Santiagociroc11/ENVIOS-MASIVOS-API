@@ -379,10 +379,14 @@ export const createCampaignStats = async (data: {
 
 export const fetchCampaignsList = async (page: number = 1, limit: number = 20): Promise<any> => {
   try {
+    console.log(`🔗 Fetching campaigns: ${API_BASE_URL}/stats/campaigns?page=${page}&limit=${limit}`);
     const response = await axios.get(`${API_BASE_URL}/stats/campaigns?page=${page}&limit=${limit}`);
+    console.log('✅ Campaigns fetched successfully:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('Error fetching campaigns list:', error);
+    console.error('❌ Error fetching campaigns list:', error);
+    console.error('❌ Error response:', error.response?.data);
+    console.error('❌ Error status:', error.response?.status);
     return { campaigns: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } };
   }
 };

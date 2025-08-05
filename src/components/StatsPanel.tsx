@@ -44,6 +44,44 @@ const StatsPanel: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
 
+  // Función de prueba para crear campaña manual
+  const createTestCampaign = async () => {
+    try {
+      console.log('🧪 Creating test campaign...');
+      const testData = {
+        templateName: 'Test Campaign - Manual',
+        usersList: [
+          { whatsapp: '573001234567' },
+          { whatsapp: '573009876543' }
+        ],
+        databases: ['bot-win-4'],
+        sendingOrder: 'desc' as 'desc',
+        notes: 'Campaña de prueba manual desde frontend'
+      };
+      
+      const result = await fetch('http://localhost:5001/api/stats/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(testData)
+      });
+      
+      const data = await result.json();
+      console.log('🧪 Test campaign result:', data);
+      
+      if (data.success) {
+        alert('✅ Campaña de prueba creada exitosamente');
+        loadCampaigns(); // Recargar lista
+      } else {
+        alert('❌ Error al crear campaña de prueba: ' + data.error);
+      }
+    } catch (error) {
+      console.error('❌ Error creating test campaign:', error);
+      alert('❌ Error al crear campaña de prueba');
+    }
+  };
+
   useEffect(() => {
     loadCampaigns();
   }, [currentPage]);
@@ -51,11 +89,14 @@ const StatsPanel: React.FC = () => {
   const loadCampaigns = async () => {
     setLoading(true);
     try {
+      console.log('📊 Loading campaigns from API...');
       const response = await fetchCampaignsList(currentPage, 10);
-      setCampaigns(response.campaigns);
+      console.log('📊 API Response:', response);
+      setCampaigns(response.campaigns || []);
       setPagination(response.pagination);
+      console.log('📊 Campaigns loaded:', response.campaigns?.length || 0);
     } catch (error) {
-      console.error('Error loading campaigns:', error);
+      console.error('❌ Error loading campaigns:', error);
     } finally {
       setLoading(false);
     }
@@ -122,13 +163,23 @@ const StatsPanel: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-          <BarChart3 className="mr-3 h-8 w-8 text-blue-600" />
-          Estadísticas de Campañas
-        </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Analiza el rendimiento de tus campañas de envío masivo
-        </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
+              <BarChart3 className="mr-3 h-8 w-8 text-blue-600" />
+              Estadísticas de Campañas
+            </h1>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              Analiza el rendimiento de tus campañas de envío masivo
+            </p>
+          </div>
+          <button
+            onClick={createTestCampaign}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            🧪 Crear Campaña de Prueba
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
