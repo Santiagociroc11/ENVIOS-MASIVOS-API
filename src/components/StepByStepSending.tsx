@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, ChevronRight, MessageSquare, Send, Users, Zap } from 'lucide-react';
 import TemplateSelector from './TemplateSelector';
-import TestMessagePanel from './TestMessagePanel';
+import TestMessageModal from './TestMessageModal';
 import AdvancedFilters from './AdvancedFilters';
 import SendingPanel from './SendingPanel';
 import UserList from './UserList';
@@ -80,6 +80,8 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
   users,
   onLoadMore
 }) => {
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  
   // Calculate step completion (simplified to 3 steps)
   const isStep1Complete = selectedTemplate !== null;
   const isStep2Complete = selectedUsers.length > 0;
@@ -199,12 +201,23 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
                 1. Elegir Plantilla de Mensaje
               </h2>
             </div>
-            {isStep1Complete && (
-              <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
-                <Check size={20} />
-                <span className="font-medium">Completado</span>
-              </div>
-            )}
+            <div className="flex items-center space-x-3">
+              {isStep1Complete && (
+                <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
+                  <Check size={20} />
+                  <span className="font-medium">Completado</span>
+                </div>
+              )}
+              {isStep1Complete && (
+                <button
+                  onClick={() => setIsTestModalOpen(true)}
+                  className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                >
+                  <Zap size={16} />
+                  <span>Enviar Prueba</span>
+                </button>
+              )}
+            </div>
           </div>
           
           <TemplateSelector 
@@ -216,24 +229,7 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
         </div>
       </div>
 
-      {/* Step 1.5: Test Message (Optional) */}
-      {isStep1Complete && (
-        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-2xl p-6 border border-yellow-200 dark:border-yellow-800">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              ⚡ Envío de Prueba (Opcional)
-            </h3>
-          </div>
-          
-          <TestMessagePanel 
-            selectedTemplate={selectedTemplate}
-            selectedDatabases={selectedDatabases}
-          />
-        </div>
-      )}
+
 
       {/* Step 2: User Selection */}
       <div className={`transition-all duration-500 ${
@@ -388,6 +384,14 @@ const StepByStepSending: React.FC<StepByStepSendingProps> = ({
           </div>
         </div>
       )}
+
+      {/* Test Message Modal */}
+      <TestMessageModal
+        isOpen={isTestModalOpen}
+        onClose={() => setIsTestModalOpen(false)}
+        selectedTemplate={selectedTemplate}
+        selectedDatabases={selectedDatabases}
+      />
     </div>
   );
 };
