@@ -273,28 +273,60 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
       }
     }
 
-    // Calcular estadísticas
+    // Calcular estadísticas más precisas
+    const campaignDate = campaign.sentAt;
+    
     const stats = {
       totalEnviados: campaign.totalSent,
-      respondieron: currentStates.filter(u => u.respondioMasivo || u.estadoActual === 'respondido').length,
-      nuevasPagados: currentStates.filter(u => 
-        u.estadoInicial !== 'pagado' && u.estadoActual === 'pagado'
-      ).length,
-      nuevosUpsells: currentStates.filter(u => 
-        !u.upsellAtInicial && u.upsellAtActual && 
-        u.upsellAtActual > (campaign.sentAt.getTime() / 1000)
-      ).length,
+      // Solo contar respuestas después del envío de la campaña
+      respondieron: currentStates.filter(u => {
+        // Verificar si hay cambio de estado que indique interacción después del envío
+        const hasStateChange = u.estadoInicial !== u.estadoActual;
+        const hasResponseState = u.estadoActual === 'respondido' || u.respondioMasivo;
+        return hasStateChange && hasResponseState;
+      }).length,
+      // Solo nuevos pagos después del envío de campaña
+      nuevasPagados: currentStates.filter(u => {
+        const wasNotPaid = u.estadoInicial !== 'pagado' && !u.pagadoAtInicial;
+        const isNowPaid = u.estadoActual === 'pagado' || u.pagadoAtActual;
+        const paidAfterCampaign = u.pagadoAtActual && 
+          new Date(u.pagadoAtActual).getTime() > campaignDate.getTime();
+        return wasNotPaid && isNowPaid && paidAfterCampaign;
+      }).length,
+      // Solo upsells después del envío de campaña
+      nuevosUpsells: currentStates.filter(u => {
+        const hadNoUpsell = !u.upsellAtInicial;
+        const hasUpsellNow = u.upsellAtActual;
+        const upsellAfterCampaign = u.upsellAtActual && 
+          new Date(u.upsellAtActual).getTime() > campaignDate.getTime();
+        return hadNoUpsell && hasUpsellNow && upsellAfterCampaign;
+      }).length,
+      // Solo cambios de estado relevantes
       cambiosEstado: currentStates.filter(u => 
         u.estadoInicial !== u.estadoActual
       ).length
     };
 
-    // Agrupar por estado inicial vs actual
+    // Agrupar por estado inicial vs actual (solo cambios significativos)
     const estadosComparison = {};
     currentStates.forEach(user => {
-      const key = `${user.estadoInicial} → ${user.estadoActual}`;
-      estadosComparison[key] = (estadosComparison[key] || 0) + 1;
+      // Solo mostrar transiciones que representan cambios reales
+      if (user.estadoInicial !== user.estadoActual) {
+        const key = `${user.estadoInicial} → ${user.estadoActual}`;
+        estadosComparison[key] = (estadosComparison[key] || 0) + 1;
+      }
     });
+
+    // Agregar información de debugging para análisis
+    const debugInfo = {
+      totalUsers: currentStates.length,
+      usersFound: currentStates.filter(u => u.estadoActual !== 'no_encontrado').length,
+      usersNotFound: currentStates.filter(u => u.estadoActual === 'no_encontrado').length,
+      stateChanges: currentStates.filter(u => u.estadoInicial !== u.estadoActual).length,
+      noStateChanges: currentStates.filter(u => u.estadoInicial === u.estadoActual).length
+    };
+
+    console.log('📊 Campaign Stats Debug:', debugInfo);
 
     res.json({
       campaign: {
