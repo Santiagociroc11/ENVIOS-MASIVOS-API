@@ -316,6 +316,9 @@ function App() {
       return;
     }
     
+    console.log('✅ Campaign created successfully:', campaign);
+    console.log('🆔 Campaign ID:', campaign.campaignId);
+    
     setCurrentCampaignId(campaign.campaignId);
     resetSendingState();
     setIsSending(true);
@@ -325,11 +328,28 @@ function App() {
       selectedUsers.includes(user.whatsapp)
     );
     
+    console.log('👥 === ANÁLISIS DE USUARIOS PARA ENVÍO ===');
+    console.log('📊 filteredUsers count:', filteredUsers.length);
+    console.log('📊 selectedUsers count:', selectedUsers.length);
+    console.log('📊 usersToMessage count:', usersToMessage.length);
+    console.log('📋 First usersToMessage example:', usersToMessage[0]);
+    console.log('🎯 Campaign ID to use:', campaign.campaignId);
+    
+    if (usersToMessage.length === 0) {
+      console.error('❌ NO USERS TO MESSAGE - STOPPING');
+      alert('❌ No hay usuarios para enviar mensajes');
+      setIsSending(false);
+      setShowSendingModal(false);
+      return;
+    }
+    
     let localSuccessCount = 0;
     let localErrorCount = 0;
     const localResults: SendingResult[] = [];
     
+    console.log('🔄 === INICIANDO BUCLE DE ENVÍO ===');
     for (let i = 0; i < usersToMessage.length; i++) {
+      console.log(`📤 Enviando mensaje ${i + 1}/${usersToMessage.length}`);
       if (sendingControlRef.current.cancel) {
         break;
       }
@@ -343,14 +363,33 @@ function App() {
       }
       
       const user = usersToMessage[i];
+      console.log(`👤 Usuario ${i + 1}:`, user);
+      console.log(`📱 WhatsApp: ${user.whatsapp}`);
+      console.log(`🗄️ Source DB: ${user._sourceDatabase || 'N/A'}`);
+      
       setCurrentSendingIndex(i + 1);
       
       try {
+        console.log('🚀 Enviando mensaje via WhatsApp API...');
         const result = await sendTemplateMessage(user.whatsapp, selectedTemplate.templateName, selectedDatabases);
+        console.log('📤 Resultado sendTemplateMessage:', result);
         
         // Add user to campaign
+        console.log('📊 Agregando usuario a campaña...');
+        console.log('🆔 Campaign ID:', currentCampaignId);
+        
         if (currentCampaignId) {
-          await addUserToCampaign(
+          const campaignData = {
+            campaignId: currentCampaignId,
+            whatsapp: user.whatsapp,
+            database: user._sourceDatabase || selectedDatabases[0],
+            status: result.success ? 'sent' : 'failed',
+            messageId: result.success ? 'message-id' : undefined,
+            error: result.error
+          };
+          console.log('📋 Datos para campaña:', campaignData);
+          
+          const campaignResult = await addUserToCampaign(
             currentCampaignId,
             user.whatsapp,
             user._sourceDatabase || selectedDatabases[0],
@@ -358,6 +397,9 @@ function App() {
             result.success ? 'message-id' : undefined,
             result.error
           );
+          console.log('✅ Resultado addUserToCampaign:', campaignResult);
+        } else {
+          console.error('❌ NO CAMPAIGN ID - Cannot add user to campaign');
         }
         
         const sendingResult: SendingResult = {
@@ -412,8 +454,15 @@ function App() {
     }
     
     // Complete campaign
+    console.log('🏁 === COMPLETANDO CAMPAÑA ===');
+    console.log('🆔 Campaign ID:', currentCampaignId);
+    
     if (currentCampaignId) {
-      await completeCampaign(currentCampaignId);
+      console.log('✅ Calling completeCampaign...');
+      const completeResult = await completeCampaign(currentCampaignId);
+      console.log('📊 Complete campaign result:', completeResult);
+    } else {
+      console.error('❌ NO CAMPAIGN ID - Cannot complete campaign');
     }
     
     setIsSending(false);

@@ -173,41 +173,70 @@ router.post('/', async (req, res) => {
 // Add sent user to campaign
 router.post('/:campaignId/add-user', async (req, res) => {
   try {
+    console.log('🎯 === BACKEND: AGREGANDO USUARIO A CAMPAÑA ===');
+    
     const { campaignId } = req.params;
     const { whatsapp, database, status, messageId, error } = req.body;
     
+    console.log('🆔 Campaign ID from params:', campaignId);
+    console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
+    
+    console.log('🔍 Buscando campaña en MongoDB...');
     const campaign = await Campaign.findById(campaignId);
+    
     if (!campaign) {
+      console.error('❌ Campaign not found:', campaignId);
       return res.status(404).json({ error: 'Campaign not found' });
     }
     
+    console.log('✅ Campaign found:', campaign.name);
+    console.log('📊 Current campaign stats:');
+    console.log('  - totalSent:', campaign.totalSent);
+    console.log('  - totalSuccess:', campaign.totalSuccess);
+    console.log('  - totalFailed:', campaign.totalFailed);
+    console.log('  - sentUsers length:', campaign.sentUsers.length);
+    
     // Add user to sent list
-    campaign.sentUsers.push({
+    const newUser = {
       whatsapp,
       database,
       sentAt: new Date(),
       status: status || 'sent',
       messageId,
       error
-    });
+    };
+    
+    console.log('👤 Adding user to campaign:', newUser);
+    campaign.sentUsers.push(newUser);
     
     // Update counters
+    console.log('📊 Updating counters...');
     if (status === 'sent' || !status) {
       campaign.totalSuccess++;
+      console.log('✅ Incrementing totalSuccess to:', campaign.totalSuccess);
     } else if (status === 'failed') {
       campaign.totalFailed++;
+      console.log('❌ Incrementing totalFailed to:', campaign.totalFailed);
     }
     
     campaign.totalSent = campaign.sentUsers.length;
+    console.log('📊 Updated totalSent to:', campaign.totalSent);
     
+    console.log('💾 Saving campaign to MongoDB...');
     await campaign.save();
+    console.log('✅ Campaign saved successfully');
     
     res.json({ success: true });
   } catch (error) {
-    console.error('Error adding user to campaign:', error);
+    console.error('❌ === ERROR ADDING USER TO CAMPAIGN ===');
+    console.error('📄 Error name:', error.name);
+    console.error('📄 Error message:', error.message);
+    console.error('📄 Error stack:', error.stack);
+    
     res.status(500).json({ 
       error: 'Failed to add user to campaign',
-      details: error.message 
+      details: error.message,
+      errorType: error.name
     });
   }
 });
@@ -215,22 +244,45 @@ router.post('/:campaignId/add-user', async (req, res) => {
 // Complete campaign
 router.post('/:campaignId/complete', async (req, res) => {
   try {
-    const { campaignId } = req.params;
+    console.log('🏁 === BACKEND: COMPLETANDO CAMPAÑA ===');
     
+    const { campaignId } = req.params;
+    console.log('🆔 Campaign ID from params:', campaignId);
+    
+    console.log('🔍 Buscando campaña en MongoDB...');
     const campaign = await Campaign.findById(campaignId);
+    
     if (!campaign) {
+      console.error('❌ Campaign not found:', campaignId);
       return res.status(404).json({ error: 'Campaign not found' });
     }
     
+    console.log('✅ Campaign found:', campaign.name);
+    console.log('📊 Final campaign stats:');
+    console.log('  - totalSent:', campaign.totalSent);
+    console.log('  - totalSuccess:', campaign.totalSuccess);
+    console.log('  - totalFailed:', campaign.totalFailed);
+    console.log('  - sentUsers length:', campaign.sentUsers.length);
+    console.log('  - completedAt (before):', campaign.completedAt);
+    
     campaign.completedAt = new Date();
+    console.log('⏰ Setting completedAt to:', campaign.completedAt);
+    
+    console.log('💾 Saving completed campaign to MongoDB...');
     await campaign.save();
+    console.log('✅ Campaign completed and saved successfully');
     
     res.json({ success: true });
   } catch (error) {
-    console.error('Error completing campaign:', error);
+    console.error('❌ === ERROR COMPLETING CAMPAIGN ===');
+    console.error('📄 Error name:', error.name);
+    console.error('📄 Error message:', error.message);
+    console.error('📄 Error stack:', error.stack);
+    
     res.status(500).json({ 
       error: 'Failed to complete campaign',
-      details: error.message 
+      details: error.message,
+      errorType: error.name
     });
   }
 });

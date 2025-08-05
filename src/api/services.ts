@@ -300,26 +300,60 @@ export const createCampaign = async (name: string, templateName: string, templat
 
 export const addUserToCampaign = async (campaignId: string, whatsapp: string, database: string, status: string, messageId?: string, error?: string) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/campaigns/${campaignId}/add-user`, {
+    console.log('🎯 === FRONTEND: AGREGANDO USUARIO A CAMPAÑA ===');
+    console.log('🆔 Campaign ID:', campaignId);
+    console.log('📱 WhatsApp:', whatsapp);
+    console.log('🗄️ Database:', database);
+    console.log('📊 Status:', status);
+    console.log('📤 Message ID:', messageId);
+    console.log('❌ Error:', error);
+    console.log('🌐 API URL:', `${API_BASE_URL}/campaigns/${campaignId}/add-user`);
+    
+    const requestData = {
       whatsapp,
       database,
       status,
       messageId,
       error
-    });
+    };
+    console.log('📦 Request data:', JSON.stringify(requestData, null, 2));
+    
+    const response = await axios.post(`${API_BASE_URL}/campaigns/${campaignId}/add-user`, requestData);
+    
+    console.log('✅ AddUserToCampaign response:', response.data);
     return response.data.success;
   } catch (error) {
-    console.error('Error adding user to campaign:', error);
+    console.error('❌ === ERROR ADDING USER TO CAMPAIGN ===');
+    console.error('📄 Error details:', error);
+    
+    if (error.response) {
+      console.error('📊 Response status:', error.response.status);
+      console.error('📦 Response data:', error.response.data);
+    }
+    
     return false;
   }
 };
 
 export const completeCampaign = async (campaignId: string) => {
   try {
+    console.log('🏁 === FRONTEND: COMPLETANDO CAMPAÑA ===');
+    console.log('🆔 Campaign ID:', campaignId);
+    console.log('🌐 API URL:', `${API_BASE_URL}/campaigns/${campaignId}/complete`);
+    
     const response = await axios.post(`${API_BASE_URL}/campaigns/${campaignId}/complete`);
+    
+    console.log('✅ CompleteCampaign response:', response.data);
     return response.data.success;
   } catch (error) {
-    console.error('Error completing campaign:', error);
+    console.error('❌ === ERROR COMPLETING CAMPAIGN ===');
+    console.error('📄 Error details:', error);
+    
+    if (error.response) {
+      console.error('📊 Response status:', error.response.status);
+      console.error('📦 Response data:', error.response.data);
+    }
+    
     return false;
   }
 };
