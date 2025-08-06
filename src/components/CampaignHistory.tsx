@@ -63,7 +63,7 @@ const CampaignHistory: React.FC = () => {
   };
 
   const handleFixPlantillaFields = async (campaign: Campaign) => {
-    if (!confirm(`¿Estás seguro de que quieres reparar la campaña "${campaign.campaignId}"?\n\nEsto actualizará:\n• plantilla_at y plantilla_enviada\n• flag_masivo para usuarios con cambios de estado\n\nLa reparación ayudará a que las estadísticas sean más precisas.`)) {
+    if (!confirm(`¿Estás seguro de que quieres reparar la campaña "${campaign.campaignId}"?\n\nEsto actualizará:\n• plantilla_at y plantilla_enviada\n• flag_masivo para usuarios con cambios de estado\n• respondio_masivo = true para quien cambió de estado\n• respondio_masivo_at (10 seg después del envío)\n\nLa reparación ayudará a que las estadísticas sean más precisas.`)) {
       return;
     }
 
@@ -85,7 +85,8 @@ const CampaignHistory: React.FC = () => {
             `• Total procesados: ${result.summary.total}\n` +
             `• Actualizados: ${result.summary.updated}\n` +
             `• Flags masivos agregados: ${result.summary.flagMasivoUpdated || 0}\n` +
-            `• Flags masivos ya existentes: ${result.summary.flagMasivoAlreadySet || 0}\n` +
+            `• respondio_masivo agregados: ${result.summary.respondioMasivoUpdated || 0}\n` +
+            `• respondio_masivo_at agregados: ${result.summary.respondioMasivoAtUpdated || 0}\n` +
             `• Total candidatos flag_masivo: ${result.summary.totalFlagMasivoCandidates || 0}\n` +
             `• Omitidos: ${result.summary.skipped}\n` +
             `• Errores: ${result.summary.errors}\n\n` +
@@ -268,7 +269,7 @@ const CampaignHistory: React.FC = () => {
                           onClick={() => handleFixPlantillaFields(campaign)}
                           disabled={fixingCampaign === campaign.campaignId}
                           className="flex items-center space-x-1 text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300 disabled:opacity-50"
-                          title="Reparar campos: plantilla_at, plantilla_enviada y flag_masivo"
+                          title="Reparar campos: plantilla_at, plantilla_enviada, flag_masivo, respondio_masivo y respondio_masivo_at"
                         >
                           <Settings className="w-4 h-4" />
                           <span>{fixingCampaign === campaign.campaignId ? 'Reparando...' : 'Reparar'}</span>

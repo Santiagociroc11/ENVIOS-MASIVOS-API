@@ -331,6 +331,8 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
     let flagMasivoUpdated = 0;
     let flagMasivoAlreadySet = 0;
     let flagMasivoNotNeeded = 0;
+    let respondioMasivoUpdated = 0;
+    let respondioMasivoAtUpdated = 0;
     const results = [];
     
     // Process each user from snapshot
@@ -346,7 +348,7 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
           
           const UserModel = await getDatabaseModel(dbConfig);
           currentUser = await UserModel.findOne({ whatsapp: userSnapshot.whatsapp })
-            .select('whatsapp estado medio pagado_at upsell_pagado_at plantilla_at plantilla_enviada flag_masivo respondio_masivo');
+            .select('whatsapp estado medio pagado_at upsell_pagado_at plantilla_at plantilla_enviada flag_masivo respondio_masivo respondio_masivo_at');
           
           if (currentUser) {
             userDatabase = { key: dbKey, config: dbConfig };
@@ -393,6 +395,19 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
           shouldSetFlagMasivo = true;
           flagReason = `Estado cambió: ${initialState} → ${currentState}`;
           console.log(`   ✅ DEBERÍA TENER flag_masivo: ${flagReason}`);
+          
+          // Si cambió de estado, también necesita campos de respuesta masiva
+          if (!currentUser.respondio_masivo) {
+            updateData.respondio_masivo = true;
+            console.log(`   📱 Agregando respondio_masivo = true`);
+          }
+          
+          if (!currentUser.respondio_masivo_at) {
+            // 10 segundos después del envío de la plantilla
+            const respondioMasivoAt = plantillaAt + 10;
+            updateData.respondio_masivo_at = respondioMasivoAt;
+            console.log(`   ⏰ Agregando respondio_masivo_at = ${respondioMasivoAt} (${new Date(respondioMasivoAt * 1000).toISOString()})`);
+          }
         } else {
           console.log(`   ❌ No cambió de estado`);
         }
@@ -405,11 +420,11 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
           } else {
             // Ya tenía flag_masivo, pero reportamos que era candidato
             flagMasivoAlreadySet++;
-            console.log(`ℹ️ Usuario ${sentUser.whatsapp} ya tenía flag_masivo = true`);
+            console.log(`ℹ️ Usuario ${userSnapshot.whatsapp} ya tenía flag_masivo = true`);
           }
         } else {
           flagMasivoNotNeeded++;
-          console.log(`❌ Usuario ${sentUser.whatsapp} NO necesita flag_masivo`);
+          console.log(`❌ Usuario ${userSnapshot.whatsapp} NO necesita flag_masivo`);
           console.log(`   Razón: ${flagReason || 'No hay cambios detectados'}`);
           console.log(`   Estado actual: ${currentUser.estado}`);
           console.log(`   flag_masivo actual: ${currentUser.flag_masivo}`);
@@ -466,6 +481,8 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
     console.log('🏷️ Flags masivos agregados:', flagMasivoUpdated);
     console.log('🏷️ Flags masivos ya existentes:', flagMasivoAlreadySet);
     console.log('🚫 Flags masivos no necesarios:', flagMasivoNotNeeded);
+    console.log('📱 respondio_masivo agregados:', respondioMasivoUpdated);
+    console.log('⏰ respondio_masivo_at agregados:', respondioMasivoAtUpdated);
     console.log('⚠️ Omitidos:', skippedCount);
     console.log('❌ Errores:', errorCount);
     console.log('📋 Total procesados:', campaignStats.usersSnapshot.length);
@@ -485,6 +502,8 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
         flagMasivoUpdated: flagMasivoUpdated,
         flagMasivoAlreadySet: flagMasivoAlreadySet,
         flagMasivoNotNeeded: flagMasivoNotNeeded,
+        respondioMasivoUpdated: respondioMasivoUpdated,
+        respondioMasivoAtUpdated: respondioMasivoAtUpdated,
         totalFlagMasivoCandidates: flagMasivoUpdated + flagMasivoAlreadySet,
         skipped: skippedCount,
         errors: errorCount
