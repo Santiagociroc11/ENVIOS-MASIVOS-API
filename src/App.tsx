@@ -236,32 +236,7 @@ function App() {
     
     console.log('✅ Campaign created successfully:', campaign);
 
-    // Crear estadísticas de campaña automáticamente
-    try {
-      console.log('📊 Creating campaign stats...');
-      const usersToMessage = filteredUsers.filter(user =>
-        selectedUsers.includes(user.whatsapp)
-      );
-      
-      console.log('📊 Users to track:', usersToMessage.length);
-      console.log('📊 Template:', selectedTemplate.templateName);
-      console.log('📊 Databases:', selectedDatabases);
-      console.log('📊 Sending order:', sendingOrder);
-      
-      const statsResult =       await createCampaignStats({
-        templateName: selectedTemplate.templateName,
-        usersList: usersToMessage,
-        databases: selectedDatabases,
-        sendingOrder: sendingOrder,
-        notes: `Envío automático - ${usersToMessage.length} usuarios (ordenados por ${sortCriteria === 'ingreso' ? 'fecha de registro' : 'fecha de pago'})`
-      });
-      
-      console.log('✅ Campaign stats created successfully:', statsResult);
-    } catch (statsError: any) {
-      console.error('⚠️ Error creating campaign stats (continuing with send):', statsError);
-      console.error('⚠️ Stats error details:', statsError.response?.data);
-      // No detener el envío si falla la creación de estadísticas
-    }
+    // Las estadísticas se crearán al final del envío con los usuarios que realmente recibieron mensajes
     console.log('🆔 Campaign ID:', campaign.campaignId);
     
     const campaignId = campaign.campaignId; // Capturar el ID directamente
@@ -399,6 +374,39 @@ function App() {
       if (i < usersToMessage.length - 1) {
         await new Promise(resolve => setTimeout(resolve, getSpeedDelay(sendingSpeed)));
       }
+    }
+    
+    // Crear estadísticas de campaña con usuarios que REALMENTE recibieron mensajes
+    console.log('📊 === CREANDO ESTADÍSTICAS REALES ===');
+    try {
+      const successfulResults = localResults.filter(result => result.success);
+      const actualUsersSent = successfulResults.map(result => {
+        // Buscar el usuario original en filteredUsers
+        return filteredUsers.find(user => user.whatsapp === result.phoneNumber);
+      }).filter(user => user !== undefined); // Filtrar any undefined users
+      
+      console.log('📊 Total usuarios planeados:', usersToMessage.length);
+      console.log('📊 Usuarios que realmente recibieron mensajes:', actualUsersSent.length);
+      console.log('📊 Template:', selectedTemplate.templateName);
+      console.log('📊 Databases:', selectedDatabases);
+      console.log('📊 Sending order:', sendingOrder);
+      
+      if (actualUsersSent.length > 0) {
+        const statsResult = await createCampaignStats({
+          templateName: selectedTemplate.templateName,
+          usersList: actualUsersSent,
+          databases: selectedDatabases,
+          sendingOrder: sendingOrder,
+          notes: `Envío realizado - ${actualUsersSent.length} de ${usersToMessage.length} usuarios enviados (${sendingControlRef.current.cancel ? 'CANCELADO' : 'COMPLETADO'}) - ordenados por ${sortCriteria === 'ingreso' ? 'fecha de registro' : 'fecha de pago'}`
+        });
+        
+        console.log('✅ Campaign stats created successfully with real data:', statsResult);
+      } else {
+        console.log('⚠️ No users received messages successfully, skipping stats creation');
+      }
+    } catch (statsError: any) {
+      console.error('⚠️ Error creating campaign stats (continuing):', statsError);
+      console.error('⚠️ Stats error details:', statsError.response?.data);
     }
     
     // Complete campaign
