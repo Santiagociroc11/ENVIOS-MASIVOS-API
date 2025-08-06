@@ -71,7 +71,7 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
   };
 
   const handleFixPlantillaFields = async (campaign: Campaign) => {
-    if (!confirm(`¿Estás seguro de que quieres actualizar los campos plantilla_at y plantilla_enviada para la campaña "${campaign.name}"?\n\nEsto actualizará todos los usuarios de esta campaña con los campos faltantes.`)) {
+    if (!confirm(`¿Estás seguro de que quieres reparar la campaña "${campaign.name}"?\n\nEsto actualizará:\n• plantilla_at y plantilla_enviada\n• flag_masivo para usuarios con cambios de estado\n\nLa reparación ayudará a que las estadísticas sean más precisas.`)) {
       return;
     }
 
@@ -86,13 +86,18 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
       // Show success message with details
       alert(`✅ Reparación completada exitosamente!\n\n` +
             `📋 Campaña: ${result.campaign.name}\n` +
-            `🎯 Plantilla: ${result.campaign.templateName}\n\n` +
+            `🎯 Plantilla: ${result.campaign.templateName}\n` +
+            `📊 Método: ${result.hasSnapshots ? 'Con snapshots de estado' : 'Detección de interacción'}\n\n` +
             `📊 Resumen:\n` +
             `• Total procesados: ${result.summary.total}\n` +
             `• Actualizados: ${result.summary.updated}\n` +
+            `• Flags masivos agregados: ${result.summary.flagMasivoUpdated || 0}\n` +
             `• Omitidos: ${result.summary.skipped}\n` +
             `• Errores: ${result.summary.errors}\n\n` +
-            `Los usuarios de esta campaña ahora tienen los campos plantilla_at y plantilla_enviada correctamente actualizados.`);
+            `Los usuarios ahora tienen:\n` +
+            `✓ plantilla_at y plantilla_enviada actualizados\n` +
+            `✓ flag_masivo agregado para usuarios con cambios detectados\n\n` +
+            `Esto mejorará la precisión de las estadísticas de campaña.`);
             
     } catch (error: any) {
       console.error('❌ Error fixing campaign fields:', error);
@@ -281,7 +286,7 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
                           onClick={() => handleFixPlantillaFields(campaign)}
                           disabled={fixingCampaign === campaign._id}
                           className="flex items-center space-x-1 text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300 disabled:opacity-50"
-                          title="Actualizar campos plantilla_at y plantilla_enviada"
+                          title="Reparar campos: plantilla_at, plantilla_enviada y flag_masivo"
                         >
                           <Settings className="w-4 h-4" />
                           <span>{fixingCampaign === campaign._id ? 'Reparando...' : 'Reparar'}</span>

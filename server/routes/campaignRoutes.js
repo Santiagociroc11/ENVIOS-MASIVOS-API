@@ -1,5 +1,6 @@
 import express from 'express';
 import Campaign from '../models/campaignModel.js';
+import CampaignStats from '../models/campaignStatsModel.js';
 import { getDatabase } from '../config/databases.js';
 import { getDatabaseModel } from '../models/dynamicUserModel.js';
 
@@ -302,15 +303,15 @@ router.post('/:campaignId/complete', async (req, res) => {
   }
 });
 
-// Update campaign users retroactively with plantilla_at and plantilla_enviada
+// Update campaign users retroactively with plantilla_at, plantilla_enviada, and flag_masivo
 router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
   try {
     const { campaignId } = req.params;
     
-    console.log('🔧 === ACTUALIZANDO CAMPOS PLANTILLA RETROACTIVAMENTE ===');
+    console.log('🔧 === ACTUALIZANDO CAMPOS PLANTILLA + FLAG_MASIVO RETROACTIVAMENTE ===');
     console.log('🆔 Campaign ID:', campaignId);
     
-    // Find the campaign
+    // Find the campaign in the regular Campaign collection
     const campaign = await Campaign.findById(campaignId);
     if (!campaign) {
       return res.status(404).json({ 
@@ -323,9 +324,32 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
     console.log('📊 Usuarios enviados:', campaign.sentUsers.length);
     console.log('🎯 Plantilla:', campaign.templateName);
     
+    // Try to find the corresponding CampaignStats for initial state snapshots
+    let campaignStats = null;
+    try {
+      // Look for CampaignStats by templateName and approximate date
+      const campaignDate = campaign.createdAt;
+      const startDate = new Date(campaignDate.getTime() - (24 * 60 * 60 * 1000)); // 1 day before
+      const endDate = new Date(campaignDate.getTime() + (24 * 60 * 60 * 1000)); // 1 day after
+      
+      campaignStats = await CampaignStats.findOne({
+        templateName: campaign.templateName,
+        sentAt: { $gte: startDate, $lte: endDate }
+      });
+      
+      if (campaignStats) {
+        console.log('📊 CampaignStats encontrado - usando snapshots para detectar cambios de estado');
+      } else {
+        console.log('⚠️ No se encontró CampaignStats correspondiente - usando lógica alternativa');
+      }
+    } catch (statsError) {
+      console.warn('⚠️ Error buscando CampaignStats:', statsError.message);
+    }
+    
     let updatedCount = 0;
     let skippedCount = 0;
     let errorCount = 0;
+    let flagMasivoUpdated = 0;
     const results = [];
     
     // Process each sent user
@@ -340,15 +364,73 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
         
         const UserModel = await getDatabaseModel(dbConfig);
         
+        // Get current user data
+        const currentUser = await UserModel.findOne({ whatsapp: sentUser.whatsapp })
+          .select('whatsapp estado medio pagado_at upsell_pagado_at plantilla_at plantilla_enviada flag_masivo respondio_masivo');
+        
+        if (!currentUser) {
+          skippedCount++;
+          results.push({
+            whatsapp: sentUser.whatsapp,
+            database: sentUser.database,
+            success: false,
+            reason: 'Usuario no encontrado en la base de datos'
+          });
+          console.warn(`⚠️ Usuario ${sentUser.whatsapp} no encontrado en ${sentUser.database}`);
+          continue;
+        }
+        
         // Calculate plantilla_at from sentAt (convert to unix timestamp)
         const plantillaAt = sentUser.sentAt ? Math.floor(new Date(sentUser.sentAt).getTime() / 1000) : Math.floor(Date.now() / 1000);
         
+        // Base update data
         const updateData = {
           plantilla_at: plantillaAt,
           plantilla_enviada: campaign.templateName
         };
         
+        // Determine if we should set flag_masivo = true
+        let shouldSetFlagMasivo = false;
+        let flagReason = '';
+        
+        if (campaignStats) {
+          // Use snapshot data to detect state changes
+          const userSnapshot = campaignStats.usersSnapshot.find(snap => snap.whatsapp === sentUser.whatsapp);
+          if (userSnapshot) {
+            const initialState = userSnapshot.estadoInicial || 'desconocido';
+            const currentState = currentUser.estado || 'desconocido';
+            
+            if (initialState !== currentState) {
+              shouldSetFlagMasivo = true;
+              flagReason = `Estado cambió: ${initialState} → ${currentState}`;
+            }
+          }
+        } else {
+          // Alternative logic: detect signs of interaction/conversion
+          const hasInteractionSigns = 
+            currentUser.estado === 'respondido' ||
+            currentUser.estado === 'respondido-masivo' ||
+            currentUser.estado === 'pagado' ||
+            currentUser.respondio_masivo ||
+            currentUser.pagado_at ||
+            currentUser.upsell_pagado_at;
+            
+          if (hasInteractionSigns) {
+            shouldSetFlagMasivo = true;
+            flagReason = `Signos de interacción detectados: estado=${currentUser.estado}, pagado_at=${!!currentUser.pagado_at}`;
+          }
+        }
+        
+        // Add flag_masivo to update if needed
+        if (shouldSetFlagMasivo && !currentUser.flag_masivo) {
+          updateData.flag_masivo = true;
+          flagMasivoUpdated++;
+        }
+        
         console.log(`📝 Actualizando usuario ${sentUser.whatsapp} en ${sentUser.database}:`, updateData);
+        if (shouldSetFlagMasivo) {
+          console.log(`🏷️ Flag masivo agregado: ${flagReason}`);
+        }
         
         const result = await UserModel.updateOne(
           { whatsapp: sentUser.whatsapp },
@@ -362,7 +444,9 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
             database: sentUser.database,
             success: true,
             plantilla_at: plantillaAt,
-            plantilla_enviada: campaign.templateName
+            plantilla_enviada: campaign.templateName,
+            flag_masivo_updated: shouldSetFlagMasivo && !currentUser.flag_masivo,
+            flag_reason: flagReason || 'No necesita flag masivo'
           });
           console.log(`✅ Usuario ${sentUser.whatsapp} actualizado correctamente`);
         } else {
@@ -371,9 +455,9 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
             whatsapp: sentUser.whatsapp,
             database: sentUser.database,
             success: false,
-            reason: 'Usuario no encontrado en la base de datos'
+            reason: 'No se pudo actualizar en la base de datos'
           });
-          console.warn(`⚠️ Usuario ${sentUser.whatsapp} no encontrado en ${sentUser.database}`);
+          console.warn(`⚠️ Usuario ${sentUser.whatsapp} no se pudo actualizar en ${sentUser.database}`);
         }
         
       } catch (userError) {
@@ -390,6 +474,7 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
     
     console.log('📊 === RESUMEN DE ACTUALIZACIÓN ===');
     console.log('✅ Actualizados:', updatedCount);
+    console.log('🏷️ Flags masivos agregados:', flagMasivoUpdated);
     console.log('⚠️ Omitidos:', skippedCount);
     console.log('❌ Errores:', errorCount);
     console.log('📋 Total procesados:', campaign.sentUsers.length);
@@ -405,9 +490,11 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
       summary: {
         total: campaign.sentUsers.length,
         updated: updatedCount,
+        flagMasivoUpdated: flagMasivoUpdated,
         skipped: skippedCount,
         errors: errorCount
       },
+      hasSnapshots: !!campaignStats,
       results: results
     });
     
