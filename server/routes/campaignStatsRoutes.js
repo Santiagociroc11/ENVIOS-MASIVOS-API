@@ -63,6 +63,112 @@ async function getUSDCOPRate() {
   }
 }
 
+// Ruta de prueba para tasa de cambio
+router.get('/test-exchange-rate', async (req, res) => {
+  try {
+    console.log('💱 Testing exchange rate...');
+    const exchangeRateInfo = await getUSDCOPRate();
+    
+    res.json({
+      success: true,
+      exchangeRate: exchangeRateInfo,
+      calculationExample: {
+        usd: 100,
+        cop: (100 * exchangeRateInfo.rate).toFixed(2),
+        formula: `100 USD × ${exchangeRateInfo.rate} = ${(100 * exchangeRateInfo.rate).toFixed(2)} COP`
+      }
+    });
+  } catch (error) {
+    console.error('❌ Exchange rate test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Ruta de prueba para cálculos de rentabilidad
+router.get('/test-profitability', async (req, res) => {
+  try {
+    console.log('💰 Testing profitability calculations...');
+    
+    // Datos de ejemplo
+    const ejemploEnvios = parseInt(req.query.envios) || 1000;
+    const ejemploCompras = parseInt(req.query.compras) || 25;
+    const ejemploUpsells = parseInt(req.query.upsells) || 8;
+    
+    // Obtener tasa de cambio
+    const exchangeRateInfo = await getUSDCOPRate();
+    const usdToCopRate = exchangeRateInfo.rate;
+    
+    // Calcular métricas
+    const ingresosPorCompras = ejemploCompras * INGRESOS_POR_COMPRA;
+    const ingresosPorUpsells = ejemploUpsells * INGRESOS_POR_UPSELL;
+    const ingresosTotales = ingresosPorCompras + ingresosPorUpsells;
+    
+    const costosUSD = ejemploEnvios * COSTO_POR_MENSAJE;
+    const costosCOP = costosUSD * usdToCopRate;
+    
+    const rentabilidadNetaCOP = ingresosTotales - costosCOP;
+    const rentabilidadNetaUSD = rentabilidadNetaCOP / usdToCopRate;
+    const roiPorcentaje = (rentabilidadNetaCOP / costosCOP) * 100;
+    
+    const tasaConversion = (ejemploCompras / ejemploEnvios) * 100;
+    const tasaUpsell = (ejemploUpsells / ejemploEnvios) * 100;
+    
+    res.json({
+      success: true,
+      scenario: {
+        envios: ejemploEnvios,
+        compras: ejemploCompras,
+        upsells: ejemploUpsells
+      },
+      exchangeRate: exchangeRateInfo,
+      calculations: {
+        ingresos: {
+          porCompras: `${ejemploCompras} × $${INGRESOS_POR_COMPRA.toLocaleString('es-CO')} = $${ingresosPorCompras.toLocaleString('es-CO')} COP`,
+          porUpsells: `${ejemploUpsells} × $${INGRESOS_POR_UPSELL.toLocaleString('es-CO')} = $${ingresosPorUpsells.toLocaleString('es-CO')} COP`,
+          totales: `$${ingresosTotales.toLocaleString('es-CO')} COP`
+        },
+        costos: {
+          porMensaje: `$${COSTO_POR_MENSAJE} USD`,
+          totalesUSD: `${ejemploEnvios} × $${COSTO_POR_MENSAJE} = $${costosUSD.toFixed(2)} USD`,
+          totalesCOP: `$${costosUSD.toFixed(2)} USD × ${usdToCopRate} = $${costosCOP.toFixed(2)} COP`
+        },
+        rentabilidad: {
+          netaCOP: `$${rentabilidadNetaCOP.toFixed(2)} COP`,
+          netaUSD: `$${rentabilidadNetaUSD.toFixed(2)} USD`,
+          roi: `${roiPorcentaje.toFixed(2)}%`
+        },
+        tasas: {
+          conversion: `${tasaConversion.toFixed(2)}%`,
+          upsell: `${tasaUpsell.toFixed(2)}%`
+        }
+      },
+      interpretation: {
+        profitable: rentabilidadNetaCOP > 0,
+        message: rentabilidadNetaCOP > 0 
+          ? `✅ CAMPAÑA RENTABLE: Ganancia de $${rentabilidadNetaCOP.toFixed(2)} COP`
+          : `❌ CAMPAÑA NO RENTABLE: Pérdida de $${Math.abs(rentabilidadNetaCOP).toFixed(2)} COP`,
+        roiInterpretation: roiPorcentaje > 100 
+          ? '🚀 ROI Excelente (>100%)'
+          : roiPorcentaje > 50 
+            ? '👍 ROI Bueno (50-100%)'
+            : roiPorcentaje > 0 
+              ? '⚠️ ROI Bajo (0-50%)'
+              : '💸 Pérdida'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Profitability test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Ruta de prueba para debugging
 router.get('/test', async (req, res) => {
   try {

@@ -263,6 +263,23 @@ export const fetchCampaignDetails = async (campaignId: string) => {
   }
 };
 
+// Obtener estadísticas financieras de campaña
+export const fetchCampaignStats = async (campaignId: string) => {
+  try {
+    console.log('💰 === OBTENIENDO ESTADÍSTICAS FINANCIERAS ===');
+    console.log('🆔 Campaign ID:', campaignId);
+    console.log('🌐 URL:', `${API_BASE_URL}/campaign-stats/campaign/${campaignId}/stats`);
+    
+    const response = await axios.get(`${API_BASE_URL}/campaign-stats/campaign/${campaignId}/stats`);
+    
+    console.log('✅ Estadísticas financieras recibidas:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error fetching campaign stats:', error);
+    return null;
+  }
+};
+
 export const createCampaign = async (name: string, templateName: string, templateLanguage: string, databases: string[]) => {
   try {
     console.log('🎯 === FRONTEND: CREANDO CAMPAÑA ===');
