@@ -40,7 +40,7 @@ interface CampaignStats {
     costoEnvioUSD: number;
     costoEnvioCOP: number;
     rentabilidadNeta: number;
-    roi: number;
+    roas: number;
     ingresoPromedioPorEnvio: number;
     costoPromedioPorConversion: number;
   };
@@ -54,7 +54,7 @@ interface CampaignStats {
     ingresoTotal: string;
     costoTotal: string;
     rentabilidadNeta: string;
-    roi: string;
+    roas: string;
     tasaCambio: string;
     ingresoPromedioPorEnvio: string;
     costoPromedioPorConversion: string;
@@ -483,8 +483,8 @@ const StatsPanel: React.FC = () => {
   // Componente de Análisis Económico
   const EconomicAnalysis: React.FC<{ economicAnalysis: any; summary: any }> = ({ economicAnalysis }) => {
     const isRentable = economicAnalysis.rentabilidadNeta > 0;
-    const roiColor = economicAnalysis.roi > 100 ? 'text-green-600' : economicAnalysis.roi > 0 ? 'text-yellow-600' : 'text-red-600';
-    const roiBgColor = economicAnalysis.roi > 100 ? 'bg-green-50 dark:bg-green-900/20' : economicAnalysis.roi > 0 ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-red-50 dark:bg-red-900/20';
+    const roasColor = economicAnalysis.roas > 2 ? 'text-green-600' : economicAnalysis.roas > 1 ? 'text-yellow-600' : 'text-red-600';
+    const roasBgColor = economicAnalysis.roas > 2 ? 'bg-green-50 dark:bg-green-900/20' : economicAnalysis.roas > 1 ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-red-50 dark:bg-red-900/20';
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -555,28 +555,28 @@ const StatsPanel: React.FC = () => {
               </p>
             </div>
             
-            <div className={`p-4 rounded-lg ${roiBgColor}`}>
+            <div className={`p-4 rounded-lg ${roasBgColor}`}>
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">ROI (Retorno de Inversión)</p>
-                  <p className="text-xs text-gray-500">Rentabilidad / Costo × 100</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">ROAS (Return on Ad Spend)</p>
+                  <p className="text-xs text-gray-500">Ingresos / Inversión</p>
                 </div>
-                <p className={`text-3xl font-bold ${roiColor}`}>
-                  {economicAnalysis.roi.toFixed(1)}%
+                <p className={`text-3xl font-bold ${roasColor}`}>
+                  {economicAnalysis.roas.toFixed(1)}x
                 </p>
               </div>
               <div className="mt-2">
-                {economicAnalysis.roi > 100 ? (
+                {economicAnalysis.roas > 2 ? (
                   <p className="text-xs text-green-600 flex items-center">
-                    ✅ ¡Excelente rentabilidad!
+                    ✅ ¡Excelente ROAS! (mayor a 2x)
                   </p>
-                ) : economicAnalysis.roi > 0 ? (
+                ) : economicAnalysis.roas > 1 ? (
                   <p className="text-xs text-yellow-600 flex items-center">
-                    ⚠️ Rentable pero con margen de mejora
+                    ⚠️ ROAS positivo pero optimizable
                   </p>
                 ) : (
                   <p className="text-xs text-red-600 flex items-center">
-                    ❌ Campaña no rentable
+                    ❌ ROAS bajo (menor a 1x)
                   </p>
                 )}
               </div>
@@ -1058,10 +1058,10 @@ const StatsPanel: React.FC = () => {
                 />
                 <StatCard
                   icon={<PiggyBank className="h-5 w-5 text-white" />}
-                  title="ROI"
-                  value={campaignStats.summary.roi}
-                  color={campaignStats.economicAnalysis.roi > 100 ? "text-green-600" : campaignStats.economicAnalysis.roi > 0 ? "text-yellow-600" : "text-red-600"}
-                  bgColor={campaignStats.economicAnalysis.roi > 100 ? "bg-gradient-to-br from-green-500 to-green-600" : campaignStats.economicAnalysis.roi > 0 ? "bg-gradient-to-br from-yellow-500 to-yellow-600" : "bg-gradient-to-br from-red-500 to-red-600"}
+                  title="ROAS"
+                  value={campaignStats.summary.roas}
+                  color={campaignStats.economicAnalysis.roas > 2 ? "text-green-600" : campaignStats.economicAnalysis.roas > 1 ? "text-yellow-600" : "text-red-600"}
+                  bgColor={campaignStats.economicAnalysis.roas > 2 ? "bg-gradient-to-br from-green-500 to-green-600" : campaignStats.economicAnalysis.roas > 1 ? "bg-gradient-to-br from-yellow-500 to-yellow-600" : "bg-gradient-to-br from-red-500 to-red-600"}
                 />
               </div>
 
@@ -1117,9 +1117,9 @@ const StatsPanel: React.FC = () => {
                     <div className="text-white/60 text-xs mt-1">💰 Ganancia neta</div>
                   </div>
                   <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/20">
-                    <div className="text-2xl font-bold text-white mb-1">{campaignStats.summary.roi}</div>
-                    <div className="text-white/80 text-sm font-medium">ROI</div>
-                    <div className="text-white/60 text-xs mt-1">📈 Retorno inversión</div>
+                    <div className="text-2xl font-bold text-white mb-1">{campaignStats.summary.roas}</div>
+                    <div className="text-white/80 text-sm font-medium">ROAS</div>
+                    <div className="text-white/60 text-xs mt-1">📈 Return on Ad Spend</div>
                   </div>
                 </div>
               </div>

@@ -391,11 +391,10 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
       rentabilidadNeta: ((stats.nuevasPagados * 12900) + (stats.nuevosUpsells * 19000)) - 
                        Math.round((stats.totalEnviados * 0.0125) * exchangeRate), // COP
       
-      // ROI
-      roi: stats.totalEnviados > 0 ? 
-        ((((stats.nuevasPagados * 12900) + (stats.nuevosUpsells * 19000)) - 
-          Math.round((stats.totalEnviados * 0.0125) * exchangeRate)) / 
-         Math.round((stats.totalEnviados * 0.0125) * exchangeRate)) * 100 : 0,
+      // ROAS (Return on Ad Spend)
+      roas: stats.totalEnviados > 0 ? 
+        (((stats.nuevasPagados * 12900) + (stats.nuevosUpsells * 19000)) / 
+         Math.round((stats.totalEnviados * 0.0125) * exchangeRate)) : 0,
       
       // Métricas adicionales
       ingresoPromedioPorEnvio: stats.totalEnviados > 0 ? 
@@ -434,7 +433,7 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
       ingresoTotal: economicAnalysis.ingresoTotal,
       costoTotal: economicAnalysis.costoEnvioCOP,
       rentabilidad: economicAnalysis.rentabilidadNeta,
-      roi: economicAnalysis.roi.toFixed(2) + '%',
+      roas: economicAnalysis.roas.toFixed(2) + 'x',
       tasaCambio: economicAnalysis.tasaCambio
     });
 
@@ -464,7 +463,7 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
         ingresoTotal: '$' + economicAnalysis.ingresoTotal.toLocaleString() + ' COP',
         costoTotal: '$' + economicAnalysis.costoEnvioCOP.toLocaleString() + ' COP ($' + economicAnalysis.costoEnvioUSD.toFixed(2) + ' USD)',
         rentabilidadNeta: '$' + economicAnalysis.rentabilidadNeta.toLocaleString() + ' COP',
-        roi: economicAnalysis.roi.toFixed(2) + '%',
+        roas: economicAnalysis.roas.toFixed(2) + 'x',
         tasaCambio: '$' + economicAnalysis.tasaCambio.toFixed(2) + ' COP/USD',
         ingresoPromedioPorEnvio: '$' + Math.round(economicAnalysis.ingresoPromedioPorEnvio).toLocaleString() + ' COP',
         costoPromedioPorConversion: (stats.nuevasPagados + stats.nuevosUpsells) > 0 ? 
