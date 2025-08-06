@@ -282,7 +282,7 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
       respondieron: currentStates.filter(u => {
         // Verificar si hay cambio de estado que indique interacción después del envío
         const hasStateChange = u.estadoInicial !== u.estadoActual;
-        const hasResponseState = u.estadoActual === 'respondido' || u.respondioMasivo;
+        const hasResponseState = u.estadoActual === 'respondido' || u.estadoActual === 'respondido-masivo' || u.respondioMasivo;
         return hasStateChange && hasResponseState;
       }).length,
       // Solo nuevos pagos después del envío de campaña

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Users, MessageCircle, CreditCard, Eye, Trash2, Calendar, Database } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, MessageCircle, CreditCard, Eye, Trash2, Calendar, Database, UserCheck, SortAsc, SortDesc, CheckCircle, XCircle, ArrowUpDown } from 'lucide-react';
 import { fetchCampaignsList, fetchCampaignStats, deleteCampaignStats, createCampaignStats } from '../api/services';
 
 interface Campaign {
@@ -43,6 +43,8 @@ const StatsPanel: React.FC = () => {
   const [loadingStats, setLoadingStats] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
+  const [activeStatsTab, setActiveStatsTab] = useState<'overview' | 'users'>('overview');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'whatsapp', direction: 'asc' });
 
 
 
@@ -72,6 +74,7 @@ const StatsPanel: React.FC = () => {
       const stats = await fetchCampaignStats(campaignId);
       setCampaignStats(stats);
       setSelectedCampaign(campaignId);
+      setActiveStatsTab('overview'); // Reset to overview tab when loading new campaign
     } catch (error) {
       console.error('Error loading campaign stats:', error);
       alert('Error al cargar estadísticas de la campaña');
@@ -107,6 +110,42 @@ const StatsPanel: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const sortUsers = (users: any[], key: string, direction: 'asc' | 'desc') => {
+    return [...users].sort((a, b) => {
+      let aVal = a[key];
+      let bVal = b[key];
+      
+      // Handle special cases
+      if (key === 'hasResponse') {
+        aVal = a.estadoActual === 'respondido-masivo' || a.respondioMasivo;
+        bVal = b.estadoActual === 'respondido-masivo' || b.respondioMasivo;
+      }
+      
+      if (aVal === undefined || aVal === null) aVal = '';
+      if (bVal === undefined || bVal === null) bVal = '';
+      
+      if (direction === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+  };
+
+  const handleSort = (key: string) => {
+    const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (columnKey: string) => {
+    if (sortConfig.key !== columnKey) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
+    }
+    return sortConfig.direction === 'asc' ? 
+      <SortAsc className="h-4 w-4 text-blue-600" /> : 
+      <SortDesc className="h-4 w-4 text-blue-600" />;
   };
 
   const StatCard: React.FC<{ icon: React.ReactNode; title: string; value: string | number; percentage?: string; color: string; bgColor: string }> = 
@@ -413,6 +452,178 @@ const StatsPanel: React.FC = () => {
     );
   };
 
+  // Componente de Lista de Usuarios
+  const UsersTable: React.FC<{ userDetails: any[]; campaignDate: string }> = ({ userDetails, campaignDate }) => {
+    const sortedUsers = sortUsers(userDetails, sortConfig.key, sortConfig.direction);
+    
+    // Calcular estadísticas rápidas de la tabla
+    const totalUsers = userDetails.length;
+    const respondedUsers = userDetails.filter(user => user.estadoActual === 'respondido-masivo' || user.respondioMasivo).length;
+    const stateChanges = userDetails.filter(user => user.estadoInicial !== user.estadoActual).length;
+    
+    const getResponseIndicator = (user: any) => {
+      const hasResponse = user.estadoActual === 'respondido-masivo' || user.respondioMasivo;
+      return hasResponse ? (
+        <div className="flex items-center text-green-600">
+          <CheckCircle className="h-4 w-4 mr-1" />
+          <span className="text-xs font-medium">Respondió</span>
+        </div>
+      ) : (
+        <div className="flex items-center text-gray-400">
+          <XCircle className="h-4 w-4 mr-1" />
+          <span className="text-xs">Sin respuesta</span>
+        </div>
+      );
+    };
+
+    const getStatusBadge = (estado: string) => {
+      const colors: Record<string, string> = {
+        'respondido-masivo': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300',
+        'respondido': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300',
+        'pagado': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300',
+        'bienvenida': 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300',
+        'lead': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300',
+        'medio': 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300',
+      };
+      
+      return (
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colors[estado] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300'}`}>
+          {estado}
+        </span>
+      );
+    };
+
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+            <UserCheck className="h-5 w-5 mr-2 text-blue-600" />
+            Lista de Usuarios ({userDetails.length})
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Detalles completos de todos los usuarios de la campaña
+          </p>
+          
+          {/* Resumen rápido */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+              <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{totalUsers}</div>
+              <div className="text-xs text-blue-600 dark:text-blue-400">Total Usuarios</div>
+            </div>
+            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+              <div className="text-lg font-bold text-green-600 dark:text-green-400">{respondedUsers}</div>
+              <div className="text-xs text-green-600 dark:text-green-400">Respondieron ({totalUsers > 0 ? ((respondedUsers / totalUsers) * 100).toFixed(1) : 0}%)</div>
+            </div>
+            <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
+              <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{stateChanges}</div>
+              <div className="text-xs text-purple-600 dark:text-purple-400">Cambios de Estado ({totalUsers > 0 ? ((stateChanges / totalUsers) * 100).toFixed(1) : 0}%)</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-900">
+              <tr>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200"
+                  onClick={() => handleSort('whatsapp')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>WhatsApp</span>
+                    {getSortIcon('whatsapp')}
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200"
+                  onClick={() => handleSort('estadoInicial')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Estado Inicial</span>
+                    {getSortIcon('estadoInicial')}
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200"
+                  onClick={() => handleSort('estadoActual')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Estado Actual</span>
+                    {getSortIcon('estadoActual')}
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Fecha Envío
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200"
+                  onClick={() => handleSort('hasResponse')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Respuesta</span>
+                    {getSortIcon('hasResponse')}
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200"
+                  onClick={() => handleSort('sourceDatabase')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Base de Datos</span>
+                    {getSortIcon('sourceDatabase')}
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {sortedUsers.map((user, index) => {
+                const hasResponse = user.estadoActual === 'respondido-masivo' || user.respondioMasivo;
+                return (
+                  <tr key={user.whatsapp} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${hasResponse ? 'bg-green-50/50 dark:bg-green-900/10' : ''}`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {hasResponse && (
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                        )}
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {user.whatsapp}
+                        </div>
+                      </div>
+                    </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(user.estadoInicial)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(user.estadoActual)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {formatDate(campaignDate)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getResponseIndicator(user)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300">
+                      {user.sourceDatabase}
+                    </span>
+                  </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        
+        {userDetails.length === 0 && (
+          <div className="text-center py-8">
+            <Users className="mx-auto h-12 w-12 text-gray-400" />
+            <p className="mt-2 text-gray-500 dark:text-gray-400">No hay usuarios en esta campaña</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
@@ -572,11 +783,56 @@ const StatsPanel: React.FC = () => {
                 )}
               </div>
 
-              {/* Embudo de Conversión - Vista Principal */}
-              <ConversionFunnel stats={campaignStats.stats} />
+              {/* Pestañas de Estadísticas */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                {/* Navegación de pestañas */}
+                <div className="border-b border-gray-200 dark:border-gray-700">
+                  <nav className="flex space-x-8 px-6" aria-label="Tabs">
+                    <button
+                      onClick={() => setActiveStatsTab('overview')}
+                      className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                        activeStatsTab === 'overview'
+                          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      <BarChart3 className="h-4 w-4 inline mr-2" />
+                      Resumen y Análisis
+                    </button>
+                    <button
+                      onClick={() => setActiveStatsTab('users')}
+                      className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                        activeStatsTab === 'users'
+                          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      <UserCheck className="h-4 w-4 inline mr-2" />
+                      Lista de Usuarios ({campaignStats.userDetails?.length || 0})
+                    </button>
+                  </nav>
+                </div>
 
-              {/* Análisis Detallado e Insights */}
-              <DetailedAnalysis stats={campaignStats.stats} estadosComparison={campaignStats.estadosComparison} />
+                {/* Contenido de pestañas */}
+                <div className="p-6">
+                  {activeStatsTab === 'overview' ? (
+                    <div className="space-y-6">
+                      {/* Embudo de Conversión - Vista Principal */}
+                      <ConversionFunnel stats={campaignStats.stats} />
+
+                      {/* Análisis Detallado e Insights */}
+                      <DetailedAnalysis stats={campaignStats.stats} estadosComparison={campaignStats.estadosComparison} />
+                    </div>
+                  ) : (
+                    <div className="-m-6">
+                      <UsersTable 
+                        userDetails={campaignStats.userDetails || []} 
+                        campaignDate={campaignStats.campaign.sentAt} 
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Métricas principales - Resumen Rápido */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
