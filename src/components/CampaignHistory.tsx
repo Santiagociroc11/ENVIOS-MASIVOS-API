@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Send, Users, CheckCircle2, XCircle, Clock, Eye, MessageCircle, Calendar, Database, TrendingUp, BarChart3 } from 'lucide-react';
-import { fetchCampaigns, fetchCampaignDetails, fetchCampaignStats } from '../api/services';
+import { fetchCampaigns, fetchCampaignDetails } from '../api/services';
 
 interface Campaign {
   _id: string;
@@ -27,59 +27,6 @@ interface CampaignDetails {
   };
 }
 
-interface CampaignFinancialStats {
-  campaign: {
-    campaignId: string;
-    templateName: string;
-    sentAt: string;
-    databases: string[];
-    notes: string;
-  };
-  stats: {
-    totalEnviados: number;
-    respondieron: number;
-    nuevasPagados: number;
-    nuevosUpsells: number;
-    usuariosConPlantilla: number;
-    usuariosConCompras: number;
-    comprasDirectasPlantilla: number;
-    ingresosPorCompras: number;
-    ingresosPorUpsells: number;
-    costosMensajesUSD: number;
-    costosMensajesCOP: number;
-    ingresosTotalesCOP: number;
-    rentabilidadNetaCOP: number;
-    rentabilidadNetaUSD: number;
-    roiPorcentaje: number;
-  };
-  financialData: {
-    tasaCambio: {
-      rate: number;
-      source: string;
-      timestamp: string;
-      warning?: string;
-    };
-    ingresosTotalesCOP: number;
-    costosTotalesUSD: number;
-    costosTotalesCOP: number;
-    rentabilidadNetaCOP: number;
-    rentabilidadNetaUSD: number;
-    roiPorcentaje: number;
-  };
-  summary: {
-    tasaRespuesta: string;
-    tasaConversion: string;
-    tasaUpsell: string;
-    efectividadPlantilla: string;
-    ingresosTotales: string;
-    costosTotales: string;
-    rentabilidadNeta: string;
-    roi: string;
-    tasaCambioUsada: string;
-    [key: string]: string;
-  };
-}
-
 interface CampaignHistoryProps {
   selectedDatabases: string[];
 }
@@ -88,10 +35,8 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignDetails | null>(null);
-  const [selectedCampaignStats, setSelectedCampaignStats] = useState<CampaignFinancialStats | null>(null);
   const [showDetails, setShowDetails] = useState<boolean>(false);
   const [loadingDetails, setLoadingDetails] = useState<boolean>(false);
-  const [loadingStats, setLoadingStats] = useState<boolean>(false);
 
   useEffect(() => {
     loadCampaigns();
@@ -111,24 +56,16 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
 
   const handleViewDetails = async (campaign: Campaign) => {
     setLoadingDetails(true);
-    setLoadingStats(true);
     try {
-      // Cargar detalles básicos y estadísticas financieras en paralelo
-      const [details, stats] = await Promise.all([
-        fetchCampaignDetails(campaign._id),
-        fetchCampaignStats(campaign._id)
-      ]);
-      
+      const details = await fetchCampaignDetails(campaign._id);
       if (details) {
         setSelectedCampaign(details);
-        setSelectedCampaignStats(stats);
         setShowDetails(true);
       }
     } catch (error) {
-      console.error('Error loading campaign details/stats:', error);
+      console.error('Error loading campaign details:', error);
     } finally {
       setLoadingDetails(false);
-      setLoadingStats(false);
     }
   };
 
@@ -379,131 +316,6 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
                 </div>
               </div>
 
-              {/* Rentabilidad Financiera */}
-              {selectedCampaignStats && (
-                <div className="mb-6">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                    <TrendingUp className="w-5 h-5 mr-2" />
-                    💰 Análisis de Rentabilidad
-                  </h3>
-                  
-                  {/* Métricas principales */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl">
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-2">💰 Ingresos Totales</h4>
-                      <div className="text-2xl font-bold text-green-600">
-                        {selectedCampaignStats.summary.ingresosTotales}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                        {selectedCampaignStats.stats.nuevasPagados} compras + {selectedCampaignStats.stats.nuevosUpsells} upsells
-                      </div>
-                    </div>
-                    
-                    <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl">
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-2">💸 Costos Totales</h4>
-                      <div className="text-2xl font-bold text-red-600">
-                        {selectedCampaignStats.summary.costosTotales.split(' (')[0]}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                        ${selectedCampaignStats.stats.costosMensajesUSD.toFixed(2)} USD
-                      </div>
-                    </div>
-                    
-                    <div className={`p-4 rounded-xl ${
-                      selectedCampaignStats.stats.rentabilidadNetaCOP > 0 
-                        ? 'bg-blue-50 dark:bg-blue-900/20' 
-                        : 'bg-red-50 dark:bg-red-900/20'
-                    }`}>
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                        {selectedCampaignStats.stats.rentabilidadNetaCOP > 0 ? '📈' : '📉'} Rentabilidad Neta
-                      </h4>
-                      <div className={`text-2xl font-bold ${
-                        selectedCampaignStats.stats.rentabilidadNetaCOP > 0 ? 'text-blue-600' : 'text-red-600'
-                      }`}>
-                        {selectedCampaignStats.summary.rentabilidadNeta.split(' (')[0]}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                        ${selectedCampaignStats.stats.rentabilidadNetaUSD.toFixed(2)} USD
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ROI y tasas */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg text-center">
-                      <div className="text-sm text-gray-600 dark:text-gray-300">ROI</div>
-                      <div className={`text-xl font-bold ${
-                        selectedCampaignStats.stats.roiPorcentaje > 0 ? 'text-purple-600' : 'text-red-600'
-                      }`}>
-                        {selectedCampaignStats.summary.roi}
-                      </div>
-                    </div>
-                    
-                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-lg text-center">
-                      <div className="text-sm text-gray-600 dark:text-gray-300">Conversión</div>
-                      <div className="text-xl font-bold text-indigo-600">
-                        {selectedCampaignStats.summary.tasaConversion}
-                      </div>
-                    </div>
-                    
-                    <div className="bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg text-center">
-                      <div className="text-sm text-gray-600 dark:text-gray-300">Upsell</div>
-                      <div className="text-xl font-bold text-teal-600">
-                        {selectedCampaignStats.summary.tasaUpsell}
-                      </div>
-                    </div>
-                    
-                    <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg text-center">
-                      <div className="text-sm text-gray-600 dark:text-gray-300">Respuesta</div>
-                      <div className="text-xl font-bold text-orange-600">
-                        {selectedCampaignStats.summary.tasaRespuesta}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Desglose detallado */}
-                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-xl">
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">📊 Desglose Detallado</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-green-600">📦 Compras:</span>
-                        <span className="font-mono">{selectedCampaignStats.summary.ingresosPorCompras}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-blue-600">⬆️ Upsells:</span>
-                        <span className="font-mono">{selectedCampaignStats.summary.ingresosPorUpsells}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-red-600">💸 Mensajes:</span>
-                        <span className="font-mono">{selectedCampaignStats.summary.costosPorMensajes}</span>
-                      </div>
-                      <hr className="border-gray-300 dark:border-gray-600" />
-                      <div className="flex justify-between font-bold">
-                        <span>💱 Tasa cambio:</span>
-                        <span className="font-mono text-xs">{selectedCampaignStats.summary.tasaCambioUsada}</span>
-                      </div>
-                      {selectedCampaignStats.financialData.tasaCambio.warning && (
-                        <div className="text-xs text-amber-600 dark:text-amber-400">
-                          ⚠️ {selectedCampaignStats.financialData.tasaCambio.warning}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Loading de estadísticas financieras */}
-              {loadingStats && !selectedCampaignStats && (
-                <div className="mb-6">
-                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-xl">
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mr-2"></div>
-                      <span className="text-gray-600 dark:text-gray-300">Calculando rentabilidad...</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Current User Stats */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">📈 Estado Actual de Usuarios</h3>
@@ -556,11 +368,7 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
             {/* Footer */}
             <div className="bg-gray-50 dark:bg-gray-900 p-6 border-t border-gray-200 dark:border-gray-700">
               <button
-                onClick={() => {
-                  setShowDetails(false);
-                  setSelectedCampaign(null);
-                  setSelectedCampaignStats(null);
-                }}
+                onClick={() => setShowDetails(false)}
                 className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
               >
                 Cerrar
