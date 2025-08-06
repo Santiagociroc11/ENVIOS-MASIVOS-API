@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, Users, MessageCircle, CreditCard, Eye, Trash2, Calendar, Database, UserCheck, SortAsc, SortDesc, CheckCircle, XCircle, ArrowUpDown, DollarSign, PiggyBank, Target, Zap } from 'lucide-react';
-import { fetchCampaignsList, fetchCampaignStats, deleteCampaignStats } from '../api/services';
+import { fetchCampaignsList, fetchCampaignStats, deleteCampaignStats, fetchGlobalStats } from '../api/services';
 
 interface Campaign {
   campaignId: string;
@@ -9,6 +9,57 @@ interface Campaign {
   totalSent: number;
   databases: string[];
   notes: string;
+  miniMetrics?: {
+    respondieron: number;
+    nuevasPagados: number;
+    nuevosUpsells: number;
+    tasaRespuesta: string;
+    tasaConversion: string;
+    tasaUpsell: string;
+    roas: string;
+    ingresoTotal: string;
+    costoEnvio: string;
+    rentabilidad: string;
+    roasNumerico: number;
+    rentabilidadNumerica: number;
+  };
+}
+
+interface GlobalStats {
+  totalCampaigns: number;
+  campañasConDatos: number;
+  globalStats: {
+    totalEnviados: number;
+    totalRespondieron: number;
+    totalNuevasPagados: number;
+    totalNuevosUpsells: number;
+    totalCambiosEstado: number;
+  };
+  globalEconomicAnalysis: {
+    ingresoPorCompra: number;
+    ingresoPorUpsell: number;
+    costoPorMensaje: number;
+    tasaCambio: number;
+    ingresoCompras: number;
+    ingresoUpsells: number;
+    ingresoTotal: number;
+    costoTotal: number;
+    rentabilidadNeta: number;
+    roas: number;
+  };
+  globalSummary: {
+    tasaRespuestaPromedio: string;
+    tasaConversionPromedio: string;
+    tasaUpsellPromedio: string;
+    roasPromedio: string;
+    tasaRespuestaGlobal: string;
+    tasaConversionGlobal: string;
+    tasaUpsellGlobal: string;
+  };
+  dateRange: {
+    from: string | null;
+    to: string | null;
+  };
 }
 
 interface CampaignStats {
@@ -67,8 +118,10 @@ const StatsPanel: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
   const [campaignStats, setCampaignStats] = useState<CampaignStats | null>(null);
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [loadingGlobalStats, setLoadingGlobalStats] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
   const [activeStatsTab, setActiveStatsTab] = useState<'overview' | 'users'>('overview');
@@ -78,6 +131,7 @@ const StatsPanel: React.FC = () => {
 
   useEffect(() => {
     loadCampaigns();
+    loadGlobalStats();
   }, [currentPage]);
 
   const loadCampaigns = async () => {
@@ -93,6 +147,21 @@ const StatsPanel: React.FC = () => {
       console.error('❌ Error loading campaigns:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadGlobalStats = async () => {
+    setLoadingGlobalStats(true);
+    try {
+      console.log('🌍 Loading global statistics...');
+      const response = await fetchGlobalStats();
+      console.log('🌍 Global stats response:', response);
+      setGlobalStats(response);
+      console.log('🌍 Global stats loaded successfully');
+    } catch (error) {
+      console.error('❌ Error loading global stats:', error);
+    } finally {
+      setLoadingGlobalStats(false);
     }
   };
 
@@ -480,6 +549,140 @@ const StatsPanel: React.FC = () => {
     );
   };
 
+  // Componente de Estadísticas Globales
+  const GlobalStatsOverview: React.FC<{ globalStats: GlobalStats }> = ({ globalStats }) => {
+    const isRentable = globalStats.globalEconomicAnalysis.rentabilidadNeta > 0;
+    const roasColor = globalStats.globalEconomicAnalysis.roas > 2 ? 'text-green-600' : globalStats.globalEconomicAnalysis.roas > 1 ? 'text-yellow-600' : 'text-red-600';
+    const roasBgColor = globalStats.globalEconomicAnalysis.roas > 2 ? 'bg-green-50 dark:bg-green-900/20' : globalStats.globalEconomicAnalysis.roas > 1 ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-red-50 dark:bg-red-900/20';
+
+    const formatDate = (dateString: string | null) => {
+      if (!dateString) return 'N/A';
+      return new Date(dateString).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    };
+
+    return (
+      <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-8 shadow-2xl mb-8">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2 flex items-center">
+              <BarChart3 className="h-7 w-7 mr-3" />
+              📊 Estadísticas Globales
+            </h2>
+            <p className="text-white/80 text-sm">
+              Resumen consolidado de todas las campañas ({globalStats.totalCampaigns} campañas, {globalStats.campañasConDatos} con datos)
+            </p>
+            {globalStats.dateRange.from && globalStats.dateRange.to && (
+              <p className="text-white/60 text-xs mt-1">
+                📅 Desde {formatDate(globalStats.dateRange.from)} hasta {formatDate(globalStats.dateRange.to)}
+              </p>
+            )}
+          </div>
+          
+          <div className={`px-4 py-2 rounded-xl ${roasBgColor} border border-white/20`}>
+            <div className="text-center">
+              <div className={`text-2xl font-bold ${roasColor}`}>
+                {globalStats.globalEconomicAnalysis.roas.toFixed(1)}x
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">ROAS Global</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Métricas principales en grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/20">
+            <div className="text-2xl font-bold text-white mb-1">
+              {globalStats.globalStats.totalEnviados.toLocaleString()}
+            </div>
+            <div className="text-white/80 text-sm font-medium">Total Enviados</div>
+            <div className="text-white/60 text-xs mt-1">📱 Mensajes</div>
+          </div>
+          
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/20">
+            <div className="text-2xl font-bold text-white mb-1">
+              {globalStats.globalStats.totalRespondieron.toLocaleString()}
+            </div>
+            <div className="text-white/80 text-sm font-medium">Respondieron</div>
+            <div className="text-white/60 text-xs mt-1">{globalStats.globalSummary.tasaRespuestaGlobal}</div>
+          </div>
+          
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/20">
+            <div className="text-2xl font-bold text-white mb-1">
+              {globalStats.globalStats.totalNuevasPagados.toLocaleString()}
+            </div>
+            <div className="text-white/80 text-sm font-medium">Nuevos Pagos</div>
+            <div className="text-white/60 text-xs mt-1">{globalStats.globalSummary.tasaConversionGlobal}</div>
+          </div>
+          
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/20">
+            <div className="text-2xl font-bold text-white mb-1">
+              {globalStats.globalStats.totalNuevosUpsells.toLocaleString()}
+            </div>
+            <div className="text-white/80 text-sm font-medium">Upsells</div>
+            <div className="text-white/60 text-xs mt-1">{globalStats.globalSummary.tasaUpsellGlobal}</div>
+          </div>
+          
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/20">
+            <div className="text-2xl font-bold text-white mb-1">
+              ${globalStats.globalEconomicAnalysis.ingresoTotal.toLocaleString()}
+            </div>
+            <div className="text-white/80 text-sm font-medium">Ingresos</div>
+            <div className="text-white/60 text-xs mt-1">💰 COP</div>
+          </div>
+          
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/20">
+            <div className="text-2xl font-bold text-white mb-1">
+              ${globalStats.globalEconomicAnalysis.costoTotal.toLocaleString()}
+            </div>
+            <div className="text-white/80 text-sm font-medium">Costos</div>
+            <div className="text-white/60 text-xs mt-1">📊 COP</div>
+          </div>
+          
+          <div className={`bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center border border-white/20 ${isRentable ? 'ring-2 ring-green-400' : 'ring-2 ring-red-400'}`}>
+            <div className={`text-2xl font-bold mb-1 ${isRentable ? 'text-green-200' : 'text-red-200'}`}>
+              ${globalStats.globalEconomicAnalysis.rentabilidadNeta.toLocaleString()}
+            </div>
+            <div className="text-white/80 text-sm font-medium">Rentabilidad</div>
+            <div className={`text-xs mt-1 ${isRentable ? 'text-green-300' : 'text-red-300'}`}>
+              {isRentable ? '✅ Rentable' : '❌ No rentable'}
+            </div>
+          </div>
+        </div>
+
+        {/* Promedios por campaña */}
+        <div className="mt-6 pt-6 border-t border-white/20">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+            <Target className="h-5 w-5 mr-2" />
+            📈 Promedios por Campaña
+          </h3>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white/5 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-white">{globalStats.globalSummary.tasaRespuestaPromedio}</div>
+              <div className="text-white/70 text-xs">Respuesta Promedio</div>
+            </div>
+            <div className="bg-white/5 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-white">{globalStats.globalSummary.tasaConversionPromedio}</div>
+              <div className="text-white/70 text-xs">Conversión Promedio</div>
+            </div>
+            <div className="bg-white/5 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-white">{globalStats.globalSummary.tasaUpsellPromedio}</div>
+              <div className="text-white/70 text-xs">Upsell Promedio</div>
+            </div>
+            <div className="bg-white/5 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-white">{globalStats.globalSummary.roasPromedio}</div>
+              <div className="text-white/70 text-xs">ROAS Promedio</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Componente de Análisis Económico
   const EconomicAnalysis: React.FC<{ economicAnalysis: any; summary: any }> = ({ economicAnalysis }) => {
     const isRentable = economicAnalysis.rentabilidadNeta > 0;
@@ -816,9 +1019,28 @@ const StatsPanel: React.FC = () => {
               Analiza el rendimiento de tus campañas de envío masivo
             </p>
           </div>
-
         </div>
       </div>
+
+      {/* Estadísticas Globales */}
+      {loadingGlobalStats ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center mb-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-500">Cargando estadísticas globales...</p>
+        </div>
+      ) : globalStats ? (
+        <GlobalStatsOverview globalStats={globalStats} />
+      ) : (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center mb-8">
+          <BarChart3 className="mx-auto h-16 w-16 text-gray-400" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+            Sin estadísticas globales
+          </h3>
+          <p className="mt-2 text-gray-500 dark:text-gray-400">
+            No se pudieron cargar las estadísticas globales
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Lista de Campañas */}
@@ -887,6 +1109,77 @@ const StatsPanel: React.FC = () => {
                           <span>{campaign.databases.join(', ')}</span>
                         </div>
                       )}
+
+                      {/* Métricas Mini */}
+                      {campaign.miniMetrics && (
+                        <div className="mt-3 space-y-2">
+                          {/* Primera fila de métricas */}
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded text-center">
+                              <div className="text-xs font-semibold text-green-700 dark:text-green-300">
+                                {campaign.miniMetrics.nuevasPagados}
+                              </div>
+                              <div className="text-[10px] text-green-600 dark:text-green-400">
+                                {campaign.miniMetrics.tasaConversion}
+                              </div>
+                            </div>
+                            <div className="bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded text-center">
+                              <div className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+                                {campaign.miniMetrics.respondieron}
+                              </div>
+                              <div className="text-[10px] text-blue-600 dark:text-blue-400">
+                                {campaign.miniMetrics.tasaRespuesta}
+                              </div>
+                            </div>
+                            <div className="bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded text-center">
+                              <div className="text-xs font-semibold text-purple-700 dark:text-purple-300">
+                                {campaign.miniMetrics.nuevosUpsells}
+                              </div>
+                              <div className="text-[10px] text-purple-600 dark:text-purple-400">
+                                {campaign.miniMetrics.tasaUpsell}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Segunda fila: ROAS y Rentabilidad */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className={`px-2 py-1 rounded text-center ${
+                              campaign.miniMetrics.roasNumerico > 2 
+                                ? 'bg-green-50 dark:bg-green-900/20' 
+                                : campaign.miniMetrics.roasNumerico > 1 
+                                  ? 'bg-yellow-50 dark:bg-yellow-900/20' 
+                                  : 'bg-red-50 dark:bg-red-900/20'
+                            }`}>
+                              <div className={`text-xs font-bold ${
+                                campaign.miniMetrics.roasNumerico > 2 
+                                  ? 'text-green-700 dark:text-green-300' 
+                                  : campaign.miniMetrics.roasNumerico > 1 
+                                    ? 'text-yellow-700 dark:text-yellow-300' 
+                                    : 'text-red-700 dark:text-red-300'
+                              }`}>
+                                {campaign.miniMetrics.roas}
+                              </div>
+                              <div className="text-[10px] text-gray-600 dark:text-gray-400">ROAS</div>
+                            </div>
+                            <div className={`px-2 py-1 rounded text-center ${
+                              campaign.miniMetrics.rentabilidadNumerica > 0 
+                                ? 'bg-green-50 dark:bg-green-900/20' 
+                                : 'bg-red-50 dark:bg-red-900/20'
+                            }`}>
+                              <div className={`text-xs font-bold ${
+                                campaign.miniMetrics.rentabilidadNumerica > 0 
+                                  ? 'text-green-700 dark:text-green-300' 
+                                  : 'text-red-700 dark:text-red-300'
+                              }`}>
+                                ${Math.round(campaign.miniMetrics.rentabilidadNumerica / 1000)}k
+                              </div>
+                              <div className="text-[10px] text-gray-600 dark:text-gray-400">
+                                {campaign.miniMetrics.rentabilidadNumerica > 0 ? 'Ganancia' : 'Pérdida'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       
                       {campaign.notes && (
                         <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -894,7 +1187,10 @@ const StatsPanel: React.FC = () => {
                         </p>
                       )}
                       
-                      <div className="mt-2 flex justify-end">
+                      <div className="mt-2 flex justify-between items-center">
+                        <div className="text-[10px] text-gray-400">
+                          {campaign.miniMetrics ? 'Con métricas' : 'Sin métricas'}
+                        </div>
                         <button className="text-blue-600 hover:text-blue-800 text-xs flex items-center">
                           <Eye className="h-3 w-3 mr-1" />
                           Ver detalles

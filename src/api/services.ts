@@ -454,3 +454,18 @@ export const fixCampaignPlantillaFields = async (campaignId: string): Promise<an
     throw new Error(errorMessage);
   }
 };
+
+// Global Statistics API
+export const fetchGlobalStats = async (): Promise<any> => {
+  try {
+    console.log('🌍 Fetching global statistics...');
+    const response = await axios.get(`${API_BASE_URL}/stats/global-stats`);
+    console.log('✅ Global stats fetched successfully:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error fetching global stats:', error);
+    console.error('❌ Error response:', error.response?.data);
+    console.error('❌ Error status:', error.response?.status);
+    throw error;
+  }
+};
