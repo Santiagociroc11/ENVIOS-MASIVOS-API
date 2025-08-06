@@ -418,6 +418,20 @@ export const fetchCampaignsMiniMetrics = async (campaignIds: string[]): Promise<
   }
 };
 
+export const cleanupCampaignUsers = async (campaignId: string): Promise<any> => {
+  try {
+    console.log(`🧹 Starting cleanup for campaign: ${campaignId}`);
+    const response = await axios.post(`${API_BASE_URL}/campaigns/${campaignId}/cleanup`);
+    console.log('✅ Campaign cleanup completed:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error cleaning up campaign:', error);
+    console.error('❌ Error response:', error.response?.data);
+    console.error('❌ Error status:', error.response?.status);
+    throw error;
+  }
+};
+
 export const fetchCampaignStats = async (campaignId: string): Promise<any> => {
   try {
     const response = await axios.get(`${API_BASE_URL}/stats/campaign/${campaignId}/stats`);

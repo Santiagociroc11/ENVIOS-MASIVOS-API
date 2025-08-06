@@ -521,4 +521,135 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
   }
 });
 
+// Cleanup campaign - Remove users without flag_masivo and clean their BD records
+router.post('/:campaignId/cleanup', async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    console.log(`🧹 Starting cleanup for campaign: ${campaignId}`);
+
+    // Find the campaign in CampaignStats
+    const campaignStats = await CampaignStats.findOne({ campaignId });
+    if (!campaignStats) {
+      return res.status(404).json({ error: 'Campaign not found in statistics' });
+    }
+
+    console.log(`📊 Found campaign with ${campaignStats.usersSnapshot.length} users in snapshot`);
+
+    // Identify users WITHOUT flag_masivo (users who didn't respond)
+    const usersWithoutFlagMasivo = campaignStats.usersSnapshot.filter(user => !user.flag_masivo);
+    const usersWithFlagMasivo = campaignStats.usersSnapshot.filter(user => user.flag_masivo);
+
+    console.log(`🔍 Analysis:
+    - Users with flag_masivo (responded): ${usersWithFlagMasivo.length}
+    - Users without flag_masivo (to be cleaned): ${usersWithoutFlagMasivo.length}`);
+
+    if (usersWithoutFlagMasivo.length === 0) {
+      return res.json({
+        message: 'No users to cleanup - all users have flag_masivo (responded)',
+        usersKept: usersWithFlagMasivo.length,
+        usersRemoved: 0,
+        databaseUpdates: {}
+      });
+    }
+
+    // Group users by database for efficient batch updates
+    const usersByDatabase = new Map();
+    for (const user of usersWithoutFlagMasivo) {
+      for (const dbKey of campaignStats.databases) {
+        if (!usersByDatabase.has(dbKey)) {
+          usersByDatabase.set(dbKey, []);
+        }
+        usersByDatabase.get(dbKey).push(user.whatsapp);
+      }
+    }
+
+    console.log(`📚 Will clean users from ${usersByDatabase.size} databases`);
+
+    // Clean flag_masivo from users in each database
+    const databaseUpdates = {};
+    for (const [dbKey, whatsappNumbers] of usersByDatabase.entries()) {
+      try {
+        const dbConfig = getDatabase(dbKey);
+        if (!dbConfig) {
+          console.warn(`⚠️ Database ${dbKey} not found, skipping...`);
+          continue;
+        }
+
+        const UserModel = await getDatabaseModel(dbConfig);
+        
+        // Remove flag_masivo, plantilla_at, plantilla_enviada, and respondio_masivo fields
+        const updateResult = await UserModel.updateMany(
+          { whatsapp: { $in: whatsappNumbers } },
+          { 
+            $unset: { 
+              flag_masivo: "",
+              plantilla_at: "",
+              plantilla_enviada: "",
+              respondio_masivo: "",
+              respondio_masivo_at: ""
+            }
+          }
+        );
+
+        databaseUpdates[dbKey] = {
+          usersProcessed: whatsappNumbers.length,
+          documentsModified: updateResult.modifiedCount,
+          documentsMatched: updateResult.matchedCount
+        };
+
+        console.log(`✅ Database ${dbKey}: ${updateResult.modifiedCount}/${whatsappNumbers.length} users cleaned`);
+
+      } catch (dbError) {
+        console.error(`❌ Error cleaning database ${dbKey}:`, dbError);
+        databaseUpdates[dbKey] = {
+          error: dbError.message,
+          usersProcessed: whatsappNumbers.length,
+          documentsModified: 0,
+          documentsMatched: 0
+        };
+      }
+    }
+
+    // Update campaign stats to keep only users with flag_masivo
+    const originalTotalSent = campaignStats.totalSent;
+    campaignStats.usersSnapshot = usersWithFlagMasivo;
+    campaignStats.totalSent = usersWithFlagMasivo.length;
+
+    // Update notes to reflect the cleanup
+    const currentNotes = campaignStats.notes || '';
+    const cleanupNote = `\n🧹 LIMPIEZA: ${usersWithoutFlagMasivo.length} usuarios sin respuesta eliminados de la campaña (${originalTotalSent} → ${usersWithFlagMasivo.length})`;
+    campaignStats.notes = currentNotes + cleanupNote;
+
+    await campaignStats.save();
+
+    console.log(`✅ Campaign cleanup completed:
+    - Original users: ${originalTotalSent}
+    - Users kept (responded): ${usersWithFlagMasivo.length}
+    - Users removed (no response): ${usersWithoutFlagMasivo.length}
+    - Campaign totalSent updated: ${originalTotalSent} → ${usersWithFlagMasivo.length}`);
+
+    res.json({
+      message: 'Campaign cleanup completed successfully',
+      campaignId: campaignId,
+      originalTotalSent: originalTotalSent,
+      usersKept: usersWithFlagMasivo.length,
+      usersRemoved: usersWithoutFlagMasivo.length,
+      newTotalSent: usersWithFlagMasivo.length,
+      databaseUpdates: databaseUpdates,
+      summary: {
+        respondedUsers: usersWithFlagMasivo.length,
+        cleanedUsers: usersWithoutFlagMasivo.length,
+        percentageKept: originalTotalSent > 0 ? ((usersWithFlagMasivo.length / originalTotalSent) * 100).toFixed(1) : 0
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error during campaign cleanup:', error);
+    res.status(500).json({ 
+      error: 'Failed to cleanup campaign',
+      details: error.message 
+    });
+  }
+});
+
 export default router;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Users, CheckCircle2, XCircle, Eye, Calendar, Database, TrendingUp, BarChart3, Settings } from 'lucide-react';
-import { fetchCampaignDetails, fetchCampaignsList, fixCampaignPlantillaFields } from '../api/services';
+import { Send, Users, CheckCircle2, XCircle, Eye, Calendar, Database, TrendingUp, BarChart3, Settings, Trash } from 'lucide-react';
+import { fetchCampaignDetails, fetchCampaignsList, fixCampaignPlantillaFields, cleanupCampaignUsers } from '../api/services';
 
 interface Campaign {
   campaignId: string;  // ← CAMBIO: usar campaignId string como StatsPanel
@@ -29,6 +29,7 @@ const CampaignHistory: React.FC = () => {
   const [showDetails, setShowDetails] = useState<boolean>(false);
   const [loadingDetails, setLoadingDetails] = useState<boolean>(false);
   const [fixingCampaign, setFixingCampaign] = useState<string | null>(null);
+  const [cleaningCampaign, setCleaningCampaign] = useState<string | null>(null);
 
   useEffect(() => {
     loadCampaigns();
@@ -100,6 +101,45 @@ const CampaignHistory: React.FC = () => {
       alert(`❌ Error al reparar la campaña:\n\n${error.message}\n\nRevisa la consola para más detalles.`);
     } finally {
       setFixingCampaign(null);
+    }
+  };
+
+  const handleCleanupCampaign = async (campaign: Campaign) => {
+    if (!confirm(`🧹 ¿Limpiar campaña "${campaign.campaignId}"?\n\n⚠️ ATENCIÓN: Esta acción:\n\n✅ MANTENDRÁ a los usuarios que respondieron (con flag_masivo)\n❌ ELIMINARÁ de la campaña a usuarios sin respuesta\n🗑️ LIMPIARÁ el flag_masivo de esos usuarios en la BD\n📊 ACTUALIZARÁ las estadísticas de la campaña\n\n🎯 Esto liberará a los usuarios no respondieron para futuros envíos.\n\n¿Continuar con la limpieza?`)) {
+      return;
+    }
+
+    setCleaningCampaign(campaign.campaignId);
+    try {
+      console.log('🧹 Iniciando limpieza de campaña:', campaign.campaignId);
+      
+      const result = await cleanupCampaignUsers(campaign.campaignId);
+      
+      console.log('✅ Limpieza completada:', result);
+      
+      // Show success message with details
+      alert(`✅ Limpieza completada exitosamente!\n\n` +
+            `📋 Campaña: ${result.campaignId}\n` +
+            `📊 Resultado:\n\n` +
+            `👥 Usuarios originales: ${result.originalTotalSent}\n` +
+            `✅ Mantenidos (respondieron): ${result.usersKept}\n` +
+            `🗑️ Eliminados (sin respuesta): ${result.usersRemoved}\n` +
+            `📈 Nuevo total: ${result.newTotalSent}\n` +
+            `📊 Porcentaje mantenido: ${result.summary.percentageKept}%\n\n` +
+            `🎯 Los ${result.usersRemoved} usuarios eliminados:\n` +
+            `• Ya no aparecen en esta campaña\n` +
+            `• Fueron limpiados en la base de datos\n` +
+            `• Están disponibles para futuros envíos\n\n` +
+            `Los ${result.usersKept} usuarios que respondieron se mantienen registrados.`);
+      
+      // Reload campaigns to see updated stats
+      loadCampaigns();
+            
+    } catch (error: any) {
+      console.error('❌ Error cleaning up campaign:', error);
+      alert(`❌ Error al limpiar la campaña:\n\n${error.message}\n\nRevisa la consola para más detalles.`);
+    } finally {
+      setCleaningCampaign(null);
     }
   };
 
@@ -273,6 +313,16 @@ const CampaignHistory: React.FC = () => {
                         >
                           <Settings className="w-4 h-4" />
                           <span>{fixingCampaign === campaign.campaignId ? 'Reparando...' : 'Reparar'}</span>
+                        </button>
+                        
+                        <button
+                          onClick={() => handleCleanupCampaign(campaign)}
+                          disabled={cleaningCampaign === campaign.campaignId}
+                          className="flex items-center space-x-1 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                          title="Limpiar campaña: Mantener solo usuarios que respondieron y liberar el resto para nuevos envíos"
+                        >
+                          <Trash className="w-4 h-4" />
+                          <span>{cleaningCampaign === campaign.campaignId ? 'Limpiando...' : 'Limpiar'}</span>
                         </button>
                       </div>
                     </td>
