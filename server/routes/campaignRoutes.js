@@ -327,41 +327,71 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
     // Try to find the corresponding CampaignStats for initial state snapshots
     let campaignStats = null;
     try {
-      // Look for CampaignStats by templateName and approximate date
-      const campaignDate = campaign.createdAt;
-      const startDate = new Date(campaignDate.getTime() - (7 * 24 * 60 * 60 * 1000)); // 7 days before
-      const endDate = new Date(campaignDate.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days after
-      
-      console.log('🔍 Buscando CampaignStats...');
+      console.log('🔍 === BUSCANDO CAMPAIGNSTATS ===');
+      console.log('🆔 Campaign ID:', campaignId);
       console.log('📋 Template:', campaign.templateName);
-      console.log('📅 Fecha campaña:', campaignDate);
-      console.log('📅 Rango búsqueda:', startDate, 'a', endDate);
       
-      // Try multiple search strategies
-      campaignStats = await CampaignStats.findOne({
-        templateName: campaign.templateName,
-        sentAt: { $gte: startDate, $lte: endDate }
-      });
+      // First try: Search by exact campaignId (same as stats panel)
+      campaignStats = await CampaignStats.findOne({ campaignId: campaignId });
       
-      if (!campaignStats) {
-        // Try broader search by template name only
-        const allCampaignStats = await CampaignStats.find({
-          templateName: campaign.templateName
-        }).sort({ sentAt: -1 });
+      if (campaignStats) {
+        console.log('✅ CampaignStats encontrado por campaignId exacto');
+      } else {
+        console.log('⚠️ No encontrado por campaignId, intentando otras estrategias...');
         
-        console.log(`📊 Found ${allCampaignStats.length} CampaignStats with template "${campaign.templateName}"`);
+        // Second try: Search by templateName and approximate date
+        const campaignDate = campaign.createdAt;
+        const startDate = new Date(campaignDate.getTime() - (7 * 24 * 60 * 60 * 1000)); // 7 days before
+        const endDate = new Date(campaignDate.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days after
         
-        if (allCampaignStats.length > 0) {
-          campaignStats = allCampaignStats[0]; // Use the most recent one
-          console.log('📊 Usando CampaignStats más reciente:', campaignStats.sentAt);
+        campaignStats = await CampaignStats.findOne({
+          templateName: campaign.templateName,
+          sentAt: { $gte: startDate, $lte: endDate }
+        });
+        
+        if (campaignStats) {
+          console.log('✅ CampaignStats encontrado por template + fecha');
+        } else {
+          // Third try: Search by template name and match users
+          const allCampaignStats = await CampaignStats.find({
+            templateName: campaign.templateName
+          }).sort({ sentAt: -1 });
+          
+          console.log(`📊 Found ${allCampaignStats.length} CampaignStats with template "${campaign.templateName}"`);
+          
+          // Find the one that has the most matching users
+          let bestMatch = null;
+          let bestMatchScore = 0;
+          
+          for (const candidateStats of allCampaignStats) {
+            const campaignUsers = new Set(campaign.sentUsers.map(u => u.whatsapp));
+            const statsUsers = new Set(candidateStats.usersSnapshot.map(u => u.whatsapp));
+            
+            // Calculate intersection
+            const intersection = new Set([...campaignUsers].filter(x => statsUsers.has(x)));
+            const matchScore = intersection.size;
+            
+            console.log(`📊 CampaignStats ${candidateStats.campaignId}: ${matchScore}/${campaignUsers.size} usuarios coinciden`);
+            
+            if (matchScore > bestMatchScore && matchScore > 0) {
+              bestMatch = candidateStats;
+              bestMatchScore = matchScore;
+            }
+          }
+          
+          if (bestMatch) {
+            campaignStats = bestMatch;
+            console.log(`✅ Mejor coincidencia encontrada: ${bestMatchScore}/${campaign.sentUsers.length} usuarios coinciden`);
+          }
         }
       }
       
       if (campaignStats) {
-        console.log('✅ CampaignStats encontrado - usando snapshots para detectar cambios de estado');
+        console.log('📊 CampaignStats ID:', campaignStats.campaignId);
         console.log('📊 Snapshots disponibles:', campaignStats.usersSnapshot.length);
+        console.log('📅 Fecha envío:', campaignStats.sentAt);
       } else {
-        console.log('⚠️ No se encontró CampaignStats correspondiente - usando lógica mejorada sin snapshots');
+        console.log('❌ No se encontró ningún CampaignStats - usando lógica sin snapshots');
       }
     } catch (statsError) {
       console.warn('⚠️ Error buscando CampaignStats:', statsError.message);
