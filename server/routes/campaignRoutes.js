@@ -329,18 +329,39 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
     try {
       // Look for CampaignStats by templateName and approximate date
       const campaignDate = campaign.createdAt;
-      const startDate = new Date(campaignDate.getTime() - (24 * 60 * 60 * 1000)); // 1 day before
-      const endDate = new Date(campaignDate.getTime() + (24 * 60 * 60 * 1000)); // 1 day after
+      const startDate = new Date(campaignDate.getTime() - (7 * 24 * 60 * 60 * 1000)); // 7 days before
+      const endDate = new Date(campaignDate.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days after
       
+      console.log('🔍 Buscando CampaignStats...');
+      console.log('📋 Template:', campaign.templateName);
+      console.log('📅 Fecha campaña:', campaignDate);
+      console.log('📅 Rango búsqueda:', startDate, 'a', endDate);
+      
+      // Try multiple search strategies
       campaignStats = await CampaignStats.findOne({
         templateName: campaign.templateName,
         sentAt: { $gte: startDate, $lte: endDate }
       });
       
+      if (!campaignStats) {
+        // Try broader search by template name only
+        const allCampaignStats = await CampaignStats.find({
+          templateName: campaign.templateName
+        }).sort({ sentAt: -1 });
+        
+        console.log(`📊 Found ${allCampaignStats.length} CampaignStats with template "${campaign.templateName}"`);
+        
+        if (allCampaignStats.length > 0) {
+          campaignStats = allCampaignStats[0]; // Use the most recent one
+          console.log('📊 Usando CampaignStats más reciente:', campaignStats.sentAt);
+        }
+      }
+      
       if (campaignStats) {
-        console.log('📊 CampaignStats encontrado - usando snapshots para detectar cambios de estado');
+        console.log('✅ CampaignStats encontrado - usando snapshots para detectar cambios de estado');
+        console.log('📊 Snapshots disponibles:', campaignStats.usersSnapshot.length);
       } else {
-        console.log('⚠️ No se encontró CampaignStats correspondiente - usando lógica alternativa');
+        console.log('⚠️ No se encontró CampaignStats correspondiente - usando lógica mejorada sin snapshots');
       }
     } catch (statsError) {
       console.warn('⚠️ Error buscando CampaignStats:', statsError.message);
@@ -350,6 +371,8 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
     let skippedCount = 0;
     let errorCount = 0;
     let flagMasivoUpdated = 0;
+    let flagMasivoAlreadySet = 0;
+    let flagMasivoNotNeeded = 0;
     const results = [];
     
     // Process each sent user
@@ -406,25 +429,44 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
             }
           }
         } else {
-          // Alternative logic: detect signs of interaction/conversion
+          // Alternative logic: TODOS los usuarios de campaña masiva deberían tener flag_masivo
+          // Solo NO se pone si están en estados "base" que no indican interacción
+          const estadosBase = ['bienvenida', 'inicial', 'nuevo', 'sin-estado', 'prospecto'];
+          const currentState = currentUser.estado || 'sin-estado';
+          
+          // Si NO está en un estado base, o tiene signos de interacción, debe tener flag_masivo
           const hasInteractionSigns = 
-            currentUser.estado === 'respondido' ||
-            currentUser.estado === 'respondido-masivo' ||
-            currentUser.estado === 'pagado' ||
+            !estadosBase.includes(currentState) ||
             currentUser.respondio_masivo ||
             currentUser.pagado_at ||
             currentUser.upsell_pagado_at;
             
           if (hasInteractionSigns) {
             shouldSetFlagMasivo = true;
-            flagReason = `Signos de interacción detectados: estado=${currentUser.estado}, pagado_at=${!!currentUser.pagado_at}`;
+            flagReason = `Usuario de campaña masiva con interacción: estado=${currentState}, pagado_at=${!!currentUser.pagado_at}, respondio_masivo=${!!currentUser.respondio_masivo}`;
+          } else {
+            // Incluso sin signos, si es de una campaña masiva, probablemente debería tener flag
+            // Solo no ponemos flag si está claramente en estado inicial
+            if (!estadosBase.includes(currentState)) {
+              shouldSetFlagMasivo = true;
+              flagReason = `Usuario de campaña masiva en estado no-base: ${currentState}`;
+            }
           }
         }
         
         // Add flag_masivo to update if needed
-        if (shouldSetFlagMasivo && !currentUser.flag_masivo) {
-          updateData.flag_masivo = true;
-          flagMasivoUpdated++;
+        if (shouldSetFlagMasivo) {
+          if (!currentUser.flag_masivo) {
+            updateData.flag_masivo = true;
+            flagMasivoUpdated++;
+          } else {
+            // Ya tenía flag_masivo, pero reportamos que era candidato
+            flagMasivoAlreadySet++;
+            console.log(`ℹ️ Usuario ${sentUser.whatsapp} ya tenía flag_masivo = true`);
+          }
+        } else {
+          flagMasivoNotNeeded++;
+          console.log(`📝 Usuario ${sentUser.whatsapp} NO necesita flag_masivo: ${flagReason || 'estado base sin interacción'}`);
         }
         
         console.log(`📝 Actualizando usuario ${sentUser.whatsapp} en ${sentUser.database}:`, updateData);
@@ -472,13 +514,17 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
       }
     }
     
-    console.log('📊 === RESUMEN DE ACTUALIZACIÓN ===');
+    console.log('📊 === RESUMEN DETALLADO DE ACTUALIZACIÓN ===');
     console.log('✅ Actualizados:', updatedCount);
     console.log('🏷️ Flags masivos agregados:', flagMasivoUpdated);
+    console.log('🏷️ Flags masivos ya existentes:', flagMasivoAlreadySet);
+    console.log('🚫 Flags masivos no necesarios:', flagMasivoNotNeeded);
     console.log('⚠️ Omitidos:', skippedCount);
     console.log('❌ Errores:', errorCount);
     console.log('📋 Total procesados:', campaign.sentUsers.length);
-    console.log('=====================================');
+    console.log('🧮 Verificación:', updatedCount + skippedCount + errorCount, '=', campaign.sentUsers.length);
+    console.log('🏷️ Total candidatos flag_masivo:', flagMasivoUpdated + flagMasivoAlreadySet);
+    console.log('================================================');
     
     res.json({
       success: true,
@@ -491,6 +537,9 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
         total: campaign.sentUsers.length,
         updated: updatedCount,
         flagMasivoUpdated: flagMasivoUpdated,
+        flagMasivoAlreadySet: flagMasivoAlreadySet,
+        flagMasivoNotNeeded: flagMasivoNotNeeded,
+        totalFlagMasivoCandidates: flagMasivoUpdated + flagMasivoAlreadySet,
         skipped: skippedCount,
         errors: errorCount
       },

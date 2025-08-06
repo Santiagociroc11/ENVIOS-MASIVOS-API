@@ -92,6 +92,8 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
             `• Total procesados: ${result.summary.total}\n` +
             `• Actualizados: ${result.summary.updated}\n` +
             `• Flags masivos agregados: ${result.summary.flagMasivoUpdated || 0}\n` +
+            `• Flags masivos ya existentes: ${result.summary.flagMasivoAlreadySet || 0}\n` +
+            `• Total candidatos flag_masivo: ${result.summary.totalFlagMasivoCandidates || 0}\n` +
             `• Omitidos: ${result.summary.skipped}\n` +
             `• Errores: ${result.summary.errors}\n\n` +
             `Los usuarios ahora tienen:\n` +
