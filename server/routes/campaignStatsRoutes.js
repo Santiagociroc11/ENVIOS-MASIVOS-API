@@ -97,7 +97,7 @@ router.post('/create', async (req, res) => {
           
           const UserModel = await getDatabaseModel(dbConfig);
           userData = await UserModel.findOne({ whatsapp: user.whatsapp })
-            .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso enviado plantilla_at')
+            .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso enviado plantilla_at flag_masivo')
             .lean();
           
           if (userData) {
@@ -114,6 +114,7 @@ router.post('/create', async (req, res) => {
             pagadoAtInicial: userData.pagado_at || null,
             upsellAtInicial: userData.upsell_pagado_at || null,
             plantillaAtInicial: userData.plantilla_at || null,
+            flagMasivoInicial: userData.flag_masivo || false,
             ingresoInicial: userData.ingreso || null,
             enviado: true,
             sourceDatabase: userData._sourceDatabase
@@ -129,6 +130,7 @@ router.post('/create', async (req, res) => {
           pagadoAtInicial: null,
           upsellAtInicial: null,
           plantillaAtInicial: null,
+          flagMasivoInicial: false,
           ingresoInicial: null,
           enviado: true,
           sourceDatabase: 'unknown'
@@ -231,7 +233,7 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
           
           const UserModel = await getDatabaseModel(dbConfig);
           currentUserData = await UserModel.findOne({ whatsapp: userSnapshot.whatsapp })
-            .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso respondio_masivo plantilla_at')
+            .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso respondio_masivo plantilla_at flag_masivo')
             .lean();
           
           if (currentUserData) {
@@ -253,6 +255,8 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
             upsellAtActual: currentUserData.upsell_pagado_at,
             plantillaAtInicial: userSnapshot.plantillaAtInicial,
             plantillaAtActual: currentUserData.plantilla_at,
+            flagMasivoInicial: userSnapshot.flagMasivoInicial,
+            flagMasivoActual: currentUserData.flag_masivo || false,
             respondioMasivo: currentUserData.respondio_masivo || false,
             sourceDatabase: currentUserData._sourceDatabase
           });
@@ -270,6 +274,8 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
             upsellAtActual: null,
             plantillaAtInicial: userSnapshot.plantillaAtInicial,
             plantillaAtActual: null,
+            flagMasivoInicial: userSnapshot.flagMasivoInicial,
+            flagMasivoActual: false,
             respondioMasivo: false,
             sourceDatabase: userSnapshot.sourceDatabase
           });
@@ -284,14 +290,15 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
     
     const stats = {
       totalEnviados: campaign.totalSent,
-      // Solo contar respuestas después del envío de la campaña
+      // Solo contar respuestas después del envío de la campaña (con flag_masivo: true)
       respondieron: currentStates.filter(u => {
         // Verificar si hay cambio de estado que indique interacción después del envío
         const hasStateChange = u.estadoInicial !== u.estadoActual;
         const hasResponseState = u.estadoActual === 'respondido' || u.estadoActual === 'respondido-masivo' || u.respondioMasivo;
-        return hasStateChange && hasResponseState;
+        const hasFlagMasivo = u.flagMasivoActual === true;
+        return hasStateChange && hasResponseState && hasFlagMasivo;
       }).length,
-      // Solo nuevos pagos que son producto de la plantilla
+      // Solo nuevos pagos que son producto de la plantilla (con flag_masivo: true)
       nuevasPagados: currentStates.filter(u => {
         const wasNotPaid = u.estadoInicial !== 'pagado' && !u.pagadoAtInicial;
         const isNowPaid = u.estadoActual === 'pagado' || u.pagadoAtActual;
@@ -303,15 +310,19 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
         const plantillaBeforePago = hasPlantillaTimestamp && hasPagadoTimestamp && 
           (u.plantillaAtActual || u.plantillaAtInicial) < u.pagadoAtActual;
         
-        return wasNotPaid && isNowPaid && plantillaBeforePago;
+        // Verificar flag_masivo
+        const hasFlagMasivo = u.flagMasivoActual === true;
+        
+        return wasNotPaid && isNowPaid && plantillaBeforePago && hasFlagMasivo;
       }).length,
-      // Solo upsells después del envío de campaña
+      // Solo upsells después del envío de campaña (con flag_masivo: true)
       nuevosUpsells: currentStates.filter(u => {
         const hadNoUpsell = !u.upsellAtInicial;
         const hasUpsellNow = u.upsellAtActual;
         const upsellAfterCampaign = u.upsellAtActual && 
           new Date(u.upsellAtActual).getTime() > campaignDate.getTime();
-        return hadNoUpsell && hasUpsellNow && upsellAfterCampaign;
+        const hasFlagMasivo = u.flagMasivoActual === true;
+        return hadNoUpsell && hasUpsellNow && upsellAfterCampaign && hasFlagMasivo;
       }).length,
       // Solo cambios de estado relevantes
       cambiosEstado: currentStates.filter(u => 
@@ -322,13 +333,15 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
         u.plantillaAtActual || u.plantillaAtInicial
       ).length,
       usuariosConCompras: currentStates.filter(u => 
-        u.pagadoAtActual
+        u.pagadoAtActual && u.flagMasivoActual === true
       ).length,
       comprasDirectasPlantilla: currentStates.filter(u => {
         const hasPlantillaTimestamp = u.plantillaAtActual || u.plantillaAtInicial;
         const hasPagadoTimestamp = u.pagadoAtActual;
-        return hasPlantillaTimestamp && hasPagadoTimestamp && 
+        const plantillaBeforePago = hasPlantillaTimestamp && hasPagadoTimestamp && 
           (u.plantillaAtActual || u.plantillaAtInicial) < u.pagadoAtActual;
+        const hasFlagMasivo = u.flagMasivoActual === true;
+        return plantillaBeforePago && hasFlagMasivo;
       }).length
     };
 
@@ -348,7 +361,9 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
       usersFound: currentStates.filter(u => u.estadoActual !== 'no_encontrado').length,
       usersNotFound: currentStates.filter(u => u.estadoActual === 'no_encontrado').length,
       stateChanges: currentStates.filter(u => u.estadoInicial !== u.estadoActual).length,
-      noStateChanges: currentStates.filter(u => u.estadoInicial === u.estadoActual).length
+      noStateChanges: currentStates.filter(u => u.estadoInicial === u.estadoActual).length,
+      usuariosConFlagMasivo: currentStates.filter(u => u.flagMasivoActual === true).length,
+      usuariosSinFlagMasivo: currentStates.filter(u => u.flagMasivoActual !== true).length
     };
 
     console.log('📊 Campaign Stats Debug:', debugInfo);
@@ -371,7 +386,8 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
         efectividadPlantilla: stats.usuariosConPlantilla > 0 
           ? ((stats.comprasDirectasPlantilla / stats.usuariosConPlantilla) * 100).toFixed(2) + '%'
           : '0%',
-        comprasDirectasDelaPlantilla: stats.comprasDirectasPlantilla + ' de ' + stats.usuariosConCompras + ' compras totales'
+        comprasDirectasDelaPlantilla: stats.comprasDirectasPlantilla + ' de ' + stats.usuariosConCompras + ' compras totales',
+        usuariosConFlagMasivo: debugInfo.usuariosConFlagMasivo + ' de ' + debugInfo.totalUsers + ' usuarios'
       }
     });
 
