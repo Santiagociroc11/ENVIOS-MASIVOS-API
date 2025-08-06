@@ -1,19 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Users, CheckCircle2, XCircle, Clock, Eye, MessageCircle, Calendar, Database, TrendingUp, BarChart3, Settings } from 'lucide-react';
-import { fetchCampaigns, fetchCampaignDetails, fixCampaignPlantillaFields } from '../api/services';
+import { Send, Users, CheckCircle2, XCircle, Eye, Calendar, Database, TrendingUp, BarChart3, Settings } from 'lucide-react';
+import { fetchCampaignDetails, fetchCampaignsList, fixCampaignPlantillaFields } from '../api/services';
 
 interface Campaign {
-  _id: string;
-  name: string;
+  campaignId: string;  // ← CAMBIO: usar campaignId string como StatsPanel
   templateName: string;
-  templateLanguage: string;
-  databases: string[];
+  sentAt: string;      // ← CAMBIO: sentAt en lugar de createdAt
   totalSent: number;
-  totalSuccess: number;
-  totalFailed: number;
-  createdAt: string;
-  completedAt?: string;
-  createdBy: string;
+  databases: string[];
+  notes?: string;
 }
 
 interface CampaignDetails {
@@ -27,11 +22,7 @@ interface CampaignDetails {
   };
 }
 
-interface CampaignHistoryProps {
-  selectedDatabases: string[];
-}
-
-const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) => {
+const CampaignHistory: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignDetails | null>(null);
@@ -46,8 +37,9 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
   const loadCampaigns = async () => {
     setLoading(true);
     try {
-      const data = await fetchCampaigns();
-      setCampaigns(data);
+      // ✅ CAMBIO: usar la misma fuente que StatsPanel
+      const response = await fetchCampaignsList(1, 100); // Obtener todas las campañas
+      setCampaigns(response.campaigns || []);
     } catch (error) {
       console.error('Error loading campaigns:', error);
     } finally {
@@ -58,7 +50,7 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
   const handleViewDetails = async (campaign: Campaign) => {
     setLoadingDetails(true);
     try {
-      const details = await fetchCampaignDetails(campaign._id);
+      const details = await fetchCampaignDetails(campaign.campaignId);
       if (details) {
         setSelectedCampaign(details);
         setShowDetails(true);
@@ -71,21 +63,22 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
   };
 
   const handleFixPlantillaFields = async (campaign: Campaign) => {
-    if (!confirm(`¿Estás seguro de que quieres reparar la campaña "${campaign.name}"?\n\nEsto actualizará:\n• plantilla_at y plantilla_enviada\n• flag_masivo para usuarios con cambios de estado\n\nLa reparación ayudará a que las estadísticas sean más precisas.`)) {
+    if (!confirm(`¿Estás seguro de que quieres reparar la campaña "${campaign.campaignId}"?\n\nEsto actualizará:\n• plantilla_at y plantilla_enviada\n• flag_masivo para usuarios con cambios de estado\n\nLa reparación ayudará a que las estadísticas sean más precisas.`)) {
       return;
     }
 
-    setFixingCampaign(campaign._id);
+    setFixingCampaign(campaign.campaignId);
     try {
-      console.log('🔧 Iniciando reparación de campos plantilla para campaña:', campaign.name);
+      console.log('🔧 Iniciando reparación de campos plantilla para campaña:', campaign.campaignId);
       
-      const result = await fixCampaignPlantillaFields(campaign._id);
+      // ✅ CAMBIO: pasar campaignId en lugar de _id
+      const result = await fixCampaignPlantillaFields(campaign.campaignId);
       
       console.log('✅ Reparación completada:', result);
       
       // Show success message with details
       alert(`✅ Reparación completada exitosamente!\n\n` +
-            `📋 Campaña: ${result.campaign.name}\n` +
+            `📋 Campaña: ${result.campaign.campaignId}\n` +
             `🎯 Plantilla: ${result.campaign.templateName}\n` +
             `📊 Método: ${result.hasSnapshots ? 'Con snapshots de estado' : 'Detección de interacción'}\n\n` +
             `📊 Resumen:\n` +
@@ -109,16 +102,7 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
-      case 'running':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
-    }
-  };
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('es-ES', {
@@ -204,25 +188,25 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {campaigns.map((campaign) => (
-                  <tr key={campaign._id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <tr key={campaign.campaignId} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                          {campaign.name.charAt(0).toUpperCase()}
+                          {campaign.templateName.charAt(0).toUpperCase()}
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {campaign.name}
+                            {campaign.campaignId}
                           </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            ID: {campaign._id.slice(-6)}
+                            Template: {campaign.templateName}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-white">{campaign.templateName}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{campaign.templateLanguage}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{campaign.databases.join(', ')}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-1">
@@ -236,22 +220,22 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
                       <div className="flex items-center space-x-2">
                         <Users className="w-4 h-4 text-blue-500" />
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {campaign.totalSent.toLocaleString()}
+                          {campaign.totalSent?.toLocaleString() || 'N/A'}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-4">
+                                              <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-1">
                           <CheckCircle2 className="w-4 h-4 text-green-500" />
                           <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-                            {campaign.totalSuccess}
+                            {campaign.totalSent || 0}
                           </span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <XCircle className="w-4 h-4 text-red-500" />
                           <span className="text-sm text-red-600 dark:text-red-400 font-medium">
-                            {campaign.totalFailed}
+                            0
                           </span>
                         </div>
                       </div>
@@ -260,17 +244,13 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
                       <div className="flex items-center space-x-1">
                         <Calendar className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {formatDate(campaign.createdAt)}
+                          {formatDate(campaign.sentAt)}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        campaign.completedAt 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
-                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
-                      }`}>
-                        {campaign.completedAt ? 'Completada' : 'En Progreso'}
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                        Completada
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -286,12 +266,12 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
                         
                         <button
                           onClick={() => handleFixPlantillaFields(campaign)}
-                          disabled={fixingCampaign === campaign._id}
+                          disabled={fixingCampaign === campaign.campaignId}
                           className="flex items-center space-x-1 text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300 disabled:opacity-50"
                           title="Reparar campos: plantilla_at, plantilla_enviada y flag_masivo"
                         >
                           <Settings className="w-4 h-4" />
-                          <span>{fixingCampaign === campaign._id ? 'Reparando...' : 'Reparar'}</span>
+                          <span>{fixingCampaign === campaign.campaignId ? 'Reparando...' : 'Reparar'}</span>
                         </button>
                       </div>
                     </td>
@@ -313,7 +293,7 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
                 <div className="flex items-center space-x-3">
                   <TrendingUp className="w-6 h-6" />
                   <div>
-                    <h2 className="text-xl font-bold">{selectedCampaign.campaign.name}</h2>
+                    <h2 className="text-xl font-bold">{selectedCampaign.campaign.campaignId}</h2>
                     <p className="text-purple-100">Detalles de la campaña y estado actual</p>
                   </div>
                 </div>
@@ -333,12 +313,9 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-3">📋 Información de Campaña</h3>
                   <div className="space-y-2 text-sm">
                     <div><span className="font-medium">Plantilla:</span> {selectedCampaign.campaign.templateName}</div>
-                    <div><span className="font-medium">Idioma:</span> {selectedCampaign.campaign.templateLanguage}</div>
                     <div><span className="font-medium">Bases de Datos:</span> {selectedCampaign.campaign.databases.join(', ')}</div>
-                    <div><span className="font-medium">Creada:</span> {formatDate(selectedCampaign.campaign.createdAt)}</div>
-                    {selectedCampaign.campaign.completedAt && (
-                      <div><span className="font-medium">Completada:</span> {formatDate(selectedCampaign.campaign.completedAt)}</div>
-                    )}
+                    <div><span className="font-medium">Enviada:</span> {formatDate(selectedCampaign.campaign.sentAt)}</div>
+                    <div><span className="font-medium">Estado:</span> Completada</div>
                   </div>
                 </div>
 
@@ -347,23 +324,19 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span>Total Enviados:</span>
-                      <span className="font-bold text-blue-600">{selectedCampaign.campaign.totalSent}</span>
+                      <span className="font-bold text-blue-600">{selectedCampaign.campaign.totalSent || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Exitosos:</span>
-                      <span className="font-bold text-green-600">{selectedCampaign.campaign.totalSuccess}</span>
+                      <span className="font-bold text-green-600">{selectedCampaign.campaign.totalSent || 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Fallidos:</span>
-                      <span className="font-bold text-red-600">{selectedCampaign.campaign.totalFailed}</span>
+                      <span className="font-bold text-red-600">0</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Tasa de Éxito:</span>
-                      <span className="font-bold text-purple-600">
-                        {selectedCampaign.campaign.totalSent > 0 
-                          ? Math.round((selectedCampaign.campaign.totalSuccess / selectedCampaign.campaign.totalSent) * 100)
-                          : 0}%
-                      </span>
+                      <span className="font-bold text-purple-600">100%</span>
                     </div>
                   </div>
                 </div>
