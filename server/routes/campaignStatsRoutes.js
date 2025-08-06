@@ -2,8 +2,66 @@ import express from 'express';
 import CampaignStats from '../models/campaignStatsModel.js';
 import { getDatabase } from '../config/databases.js';
 import { getDatabaseModel } from '../models/dynamicUserModel.js';
+import axios from 'axios';
 
 const router = express.Router();
+
+// Constantes de rentabilidad
+const INGRESOS_POR_COMPRA = 12900; // COP
+const INGRESOS_POR_UPSELL = 19000; // COP  
+const COSTO_POR_MENSAJE = 0.0125; // USD
+
+// Función para obtener tasa de cambio USD/COP
+async function getUSDCOPRate() {
+  try {
+    console.log('💱 Obteniendo tasa de cambio USD/COP...');
+    
+    // Usar API gratuita de cop-exchange-rates (fuentes oficiales colombianas)
+    const response = await axios.get('https://cop-exchange-rates.vercel.app/get_exchange_rates', {
+      timeout: 10000 // 10 segundos timeout
+    });
+    
+    if (response.data && !response.data.error) {
+      // Intentar obtener la tasa oficial primero
+      let rate = null;
+      
+      if (response.data.data.official_cop && response.data.data.official_cop.data) {
+        rate = parseFloat(response.data.data.official_cop.data.valor);
+        console.log('💱 Tasa oficial USD/COP:', rate);
+      }
+      
+      // Si no hay oficial, usar Google Finance
+      if (!rate && response.data.data.google_cop && response.data.data.google_cop.data) {
+        rate = parseFloat(response.data.data.google_cop.data.value);
+        console.log('💱 Tasa Google USD/COP:', rate);
+      }
+      
+      if (rate && rate > 0) {
+        return {
+          rate: rate,
+          source: response.data.data.official_cop ? 'Oficial Gobierno Colombia' : 'Google Finance',
+          timestamp: new Date().toISOString()
+        };
+      }
+    }
+    
+    throw new Error('No se pudo obtener tasa válida');
+    
+  } catch (error) {
+    console.error('❌ Error obteniendo tasa USD/COP:', error.message);
+    
+    // Fallback: tasa aproximada manual (actualizar manualmente si es necesario)
+    const fallbackRate = 4300; // Aproximación - debe actualizarse manualmente
+    console.log('⚠️ Usando tasa fallback:', fallbackRate);
+    
+    return {
+      rate: fallbackRate,
+      source: 'Fallback (manual)',
+      timestamp: new Date().toISOString(),
+      warning: 'Tasa de cambio manual - verificar manualmente'
+    };
+  }
+}
 
 // Ruta de prueba para debugging
 router.get('/test', async (req, res) => {
@@ -288,6 +346,12 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
     // Calcular estadísticas más precisas
     const campaignDate = campaign.sentAt;
     
+    // Obtener tasa de cambio USD/COP
+    const exchangeRateInfo = await getUSDCOPRate();
+    const usdToCopRate = exchangeRateInfo.rate;
+    
+    console.log(`💰 Usando tasa USD/COP: ${usdToCopRate} (${exchangeRateInfo.source})`);
+    
     const stats = {
       totalEnviados: campaign.totalSent,
       // Solo contar respuestas después del envío de la campaña (con flag_masivo: true)
@@ -342,8 +406,51 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
           (u.plantillaAtActual || u.plantillaAtInicial) < u.pagadoAtActual;
         const hasFlagMasivo = u.flagMasivoActual === true;
         return plantillaBeforePago && hasFlagMasivo;
-      }).length
+      }).length,
+      
+      // 💰 CÁLCULOS FINANCIEROS 💰
+      // Ingresos por compras (COP)
+      ingresosPorCompras: currentStates.filter(u => {
+        const wasNotPaid = u.estadoInicial !== 'pagado' && !u.pagadoAtInicial;
+        const isNowPaid = u.estadoActual === 'pagado' || u.pagadoAtActual;
+        const hasPlantillaTimestamp = u.plantillaAtActual || u.plantillaAtInicial;
+        const hasPagadoTimestamp = u.pagadoAtActual;
+        const plantillaBeforePago = hasPlantillaTimestamp && hasPagadoTimestamp && 
+          (u.plantillaAtActual || u.plantillaAtInicial) < u.pagadoAtActual;
+        const hasFlagMasivo = u.flagMasivoActual === true;
+        return wasNotPaid && isNowPaid && plantillaBeforePago && hasFlagMasivo;
+      }).length * INGRESOS_POR_COMPRA,
+      
+      // Ingresos por upsells (COP)
+      ingresosPorUpsells: currentStates.filter(u => {
+        const hadNoUpsell = !u.upsellAtInicial;
+        const hasUpsellNow = u.upsellAtActual;
+        const upsellAfterCampaign = u.upsellAtActual && 
+          new Date(u.upsellAtActual).getTime() > campaignDate.getTime();
+        const hasFlagMasivo = u.flagMasivoActual === true;
+        return hadNoUpsell && hasUpsellNow && upsellAfterCampaign && hasFlagMasivo;
+      }).length * INGRESOS_POR_UPSELL,
+      
+      // Costos por mensajes enviados (USD)
+      costosMensajesUSD: campaign.totalSent * COSTO_POR_MENSAJE,
+      
+      // Costos por mensajes enviados (COP)
+      costosMensajesCOP: campaign.totalSent * COSTO_POR_MENSAJE * usdToCopRate
     };
+
+    // 💰 CALCULAR RENTABILIDAD NETA
+    const ingresosTotalesCOP = stats.ingresosPorCompras + stats.ingresosPorUpsells;
+    const rentabilidadNetaCOP = ingresosTotalesCOP - stats.costosMensajesCOP;
+    const rentabilidadNetaUSD = rentabilidadNetaCOP / usdToCopRate;
+    const roiPorcentaje = stats.costosMensajesCOP > 0 
+      ? ((rentabilidadNetaCOP / stats.costosMensajesCOP) * 100)
+      : 0;
+
+    // Agregar métricas financieras a stats
+    stats.ingresosTotalesCOP = ingresosTotalesCOP;
+    stats.rentabilidadNetaCOP = rentabilidadNetaCOP;
+    stats.rentabilidadNetaUSD = rentabilidadNetaUSD;
+    stats.roiPorcentaje = roiPorcentaje;
 
     // Agrupar por estado inicial vs actual (solo cambios significativos)
     const estadosComparison = {};
@@ -377,6 +484,15 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
         notes: campaign.notes
       },
       stats,
+      financialData: {
+        tasaCambio: exchangeRateInfo,
+        ingresosTotalesCOP: stats.ingresosTotalesCOP,
+        costosTotalesUSD: stats.costosMensajesUSD,
+        costosTotalesCOP: stats.costosMensajesCOP,
+        rentabilidadNetaCOP: stats.rentabilidadNetaCOP,
+        rentabilidadNetaUSD: stats.rentabilidadNetaUSD,
+        roiPorcentaje: stats.roiPorcentaje
+      },
       estadosComparison,
       userDetails: currentStates,
       summary: {
@@ -387,7 +503,21 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
           ? ((stats.comprasDirectasPlantilla / stats.usuariosConPlantilla) * 100).toFixed(2) + '%'
           : '0%',
         comprasDirectasDelaPlantilla: stats.comprasDirectasPlantilla + ' de ' + stats.usuariosConCompras + ' compras totales',
-        usuariosConFlagMasivo: debugInfo.usuariosConFlagMasivo + ' de ' + debugInfo.totalUsers + ' usuarios'
+        usuariosConFlagMasivo: debugInfo.usuariosConFlagMasivo + ' de ' + debugInfo.totalUsers + ' usuarios',
+        
+        // 💰 MÉTRICAS FINANCIERAS 💰
+        ingresosTotales: `$${stats.ingresosTotalesCOP.toLocaleString('es-CO')} COP`,
+        costosTotales: `$${stats.costosMensajesCOP.toFixed(2).toLocaleString('es-CO')} COP (${stats.costosMensajesUSD.toFixed(2)} USD)`,
+        rentabilidadNeta: `$${stats.rentabilidadNetaCOP.toFixed(2).toLocaleString('es-CO')} COP (${stats.rentabilidadNetaUSD.toFixed(2)} USD)`,
+        roi: `${stats.roiPorcentaje.toFixed(2)}%`,
+        tasaCambioUsada: `${usdToCopRate} COP/USD (${exchangeRateInfo.source})`,
+        
+        // Desglose de ingresos
+        ingresosPorCompras: `${stats.nuevasPagados} compras × $${INGRESOS_POR_COMPRA.toLocaleString('es-CO')} = $${stats.ingresosPorCompras.toLocaleString('es-CO')} COP`,
+        ingresosPorUpsells: `${stats.nuevosUpsells} upsells × $${INGRESOS_POR_UPSELL.toLocaleString('es-CO')} = $${stats.ingresosPorUpsells.toLocaleString('es-CO')} COP`,
+        
+        // Desglose de costos
+        costosPorMensajes: `${stats.totalEnviados} mensajes × $${COSTO_POR_MENSAJE} USD = $${stats.costosMensajesUSD.toFixed(2)} USD`
       }
     });
 
