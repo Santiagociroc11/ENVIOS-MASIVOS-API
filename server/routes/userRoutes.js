@@ -217,7 +217,7 @@ router.get('/pending', async (req, res) => {
         console.log('🔍 Final query conditions:', JSON.stringify(queryConditions, null, 2));
         
         let query = UserModel.find(queryConditions)
-        .select('whatsapp estado medio medio_at ingreso enviado _id') // Include ingreso field
+        .select('whatsapp estado medio medio_at ingreso enviado plantilla_at plantilla_enviada _id') // Include all required fields
         .lean() // Use lean() for better performance
         .sort(sortObject);
         

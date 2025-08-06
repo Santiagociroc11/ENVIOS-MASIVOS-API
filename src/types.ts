@@ -63,6 +63,8 @@ export interface User {
   medio?: string;
   medio_at?: number;
   enviado?: boolean;
+  plantilla_at?: number;
+  plantilla_enviada?: string;
   nombre?: string;
 }
 

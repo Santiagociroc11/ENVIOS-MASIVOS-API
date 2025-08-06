@@ -302,4 +302,122 @@ router.post('/:campaignId/complete', async (req, res) => {
   }
 });
 
+// Update campaign users retroactively with plantilla_at and plantilla_enviada
+router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    
+    console.log('🔧 === ACTUALIZANDO CAMPOS PLANTILLA RETROACTIVAMENTE ===');
+    console.log('🆔 Campaign ID:', campaignId);
+    
+    // Find the campaign
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) {
+      return res.status(404).json({ 
+        error: 'Campaign not found',
+        details: 'La campaña especificada no existe' 
+      });
+    }
+    
+    console.log('📋 Campaña encontrada:', campaign.name);
+    console.log('📊 Usuarios enviados:', campaign.sentUsers.length);
+    console.log('🎯 Plantilla:', campaign.templateName);
+    
+    let updatedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    const results = [];
+    
+    // Process each sent user
+    for (const sentUser of campaign.sentUsers) {
+      try {
+        const dbConfig = getDatabase(sentUser.database);
+        if (!dbConfig) {
+          console.warn(`⚠️ Database ${sentUser.database} not found for user ${sentUser.whatsapp}`);
+          skippedCount++;
+          continue;
+        }
+        
+        const UserModel = await getDatabaseModel(dbConfig);
+        
+        // Calculate plantilla_at from sentAt (convert to unix timestamp)
+        const plantillaAt = sentUser.sentAt ? Math.floor(new Date(sentUser.sentAt).getTime() / 1000) : Math.floor(Date.now() / 1000);
+        
+        const updateData = {
+          plantilla_at: plantillaAt,
+          plantilla_enviada: campaign.templateName
+        };
+        
+        console.log(`📝 Actualizando usuario ${sentUser.whatsapp} en ${sentUser.database}:`, updateData);
+        
+        const result = await UserModel.updateOne(
+          { whatsapp: sentUser.whatsapp },
+          { $set: updateData }
+        );
+        
+        if (result.matchedCount > 0) {
+          updatedCount++;
+          results.push({
+            whatsapp: sentUser.whatsapp,
+            database: sentUser.database,
+            success: true,
+            plantilla_at: plantillaAt,
+            plantilla_enviada: campaign.templateName
+          });
+          console.log(`✅ Usuario ${sentUser.whatsapp} actualizado correctamente`);
+        } else {
+          skippedCount++;
+          results.push({
+            whatsapp: sentUser.whatsapp,
+            database: sentUser.database,
+            success: false,
+            reason: 'Usuario no encontrado en la base de datos'
+          });
+          console.warn(`⚠️ Usuario ${sentUser.whatsapp} no encontrado en ${sentUser.database}`);
+        }
+        
+      } catch (userError) {
+        errorCount++;
+        results.push({
+          whatsapp: sentUser.whatsapp,
+          database: sentUser.database,
+          success: false,
+          error: userError.message
+        });
+        console.error(`❌ Error procesando usuario ${sentUser.whatsapp}:`, userError);
+      }
+    }
+    
+    console.log('📊 === RESUMEN DE ACTUALIZACIÓN ===');
+    console.log('✅ Actualizados:', updatedCount);
+    console.log('⚠️ Omitidos:', skippedCount);
+    console.log('❌ Errores:', errorCount);
+    console.log('📋 Total procesados:', campaign.sentUsers.length);
+    console.log('=====================================');
+    
+    res.json({
+      success: true,
+      campaign: {
+        id: campaign._id,
+        name: campaign.name,
+        templateName: campaign.templateName
+      },
+      summary: {
+        total: campaign.sentUsers.length,
+        updated: updatedCount,
+        skipped: skippedCount,
+        errors: errorCount
+      },
+      results: results
+    });
+    
+  } catch (error) {
+    console.error('❌ Error updating campaign fields retroactively:', error);
+    res.status(500).json({ 
+      error: 'Failed to update campaign fields',
+      details: error.message 
+    });
+  }
+});
+
 export default router;

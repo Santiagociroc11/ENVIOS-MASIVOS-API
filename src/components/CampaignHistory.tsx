@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Users, CheckCircle2, XCircle, Clock, Eye, MessageCircle, Calendar, Database, TrendingUp, BarChart3 } from 'lucide-react';
-import { fetchCampaigns, fetchCampaignDetails } from '../api/services';
+import { Send, Users, CheckCircle2, XCircle, Clock, Eye, MessageCircle, Calendar, Database, TrendingUp, BarChart3, Settings } from 'lucide-react';
+import { fetchCampaigns, fetchCampaignDetails, fixCampaignPlantillaFields } from '../api/services';
 
 interface Campaign {
   _id: string;
@@ -37,6 +37,7 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignDetails | null>(null);
   const [showDetails, setShowDetails] = useState<boolean>(false);
   const [loadingDetails, setLoadingDetails] = useState<boolean>(false);
+  const [fixingCampaign, setFixingCampaign] = useState<string | null>(null);
 
   useEffect(() => {
     loadCampaigns();
@@ -66,6 +67,38 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
       console.error('Error loading campaign details:', error);
     } finally {
       setLoadingDetails(false);
+    }
+  };
+
+  const handleFixPlantillaFields = async (campaign: Campaign) => {
+    if (!confirm(`¿Estás seguro de que quieres actualizar los campos plantilla_at y plantilla_enviada para la campaña "${campaign.name}"?\n\nEsto actualizará todos los usuarios de esta campaña con los campos faltantes.`)) {
+      return;
+    }
+
+    setFixingCampaign(campaign._id);
+    try {
+      console.log('🔧 Iniciando reparación de campos plantilla para campaña:', campaign.name);
+      
+      const result = await fixCampaignPlantillaFields(campaign._id);
+      
+      console.log('✅ Reparación completada:', result);
+      
+      // Show success message with details
+      alert(`✅ Reparación completada exitosamente!\n\n` +
+            `📋 Campaña: ${result.campaign.name}\n` +
+            `🎯 Plantilla: ${result.campaign.templateName}\n\n` +
+            `📊 Resumen:\n` +
+            `• Total procesados: ${result.summary.total}\n` +
+            `• Actualizados: ${result.summary.updated}\n` +
+            `• Omitidos: ${result.summary.skipped}\n` +
+            `• Errores: ${result.summary.errors}\n\n` +
+            `Los usuarios de esta campaña ahora tienen los campos plantilla_at y plantilla_enviada correctamente actualizados.`);
+            
+    } catch (error: any) {
+      console.error('❌ Error fixing campaign fields:', error);
+      alert(`❌ Error al reparar la campaña:\n\n${error.message}\n\nRevisa la consola para más detalles.`);
+    } finally {
+      setFixingCampaign(null);
     }
   };
 
@@ -234,13 +267,26 @@ const CampaignHistory: React.FC<CampaignHistoryProps> = ({ selectedDatabases }) 
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleViewDetails(campaign)}
-                        disabled={loadingDetails}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
-                      >
-                        {loadingDetails ? 'Cargando...' : 'Ver Detalles'}
-                      </button>
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() => handleViewDetails(campaign)}
+                          disabled={loadingDetails}
+                          className="flex items-center space-x-1 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>{loadingDetails ? 'Cargando...' : 'Ver Detalles'}</span>
+                        </button>
+                        
+                        <button
+                          onClick={() => handleFixPlantillaFields(campaign)}
+                          disabled={fixingCampaign === campaign._id}
+                          className="flex items-center space-x-1 text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300 disabled:opacity-50"
+                          title="Actualizar campos plantilla_at y plantilla_enviada"
+                        >
+                          <Settings className="w-4 h-4" />
+                          <span>{fixingCampaign === campaign._id ? 'Reparando...' : 'Reparar'}</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -637,14 +637,26 @@ router.post('/send', async (req, res) => {
     console.log('👤 Contact Info:', response.data.contacts?.[0]);
     console.log('================================');
     
-    // Mark the user as messaged
+    // Mark the user as messaged with complete data
     if (sourceDatabase) {
       try {
         const UserModel = await getDatabaseModel(sourceDatabase.config);
+        const currentTimestamp = Math.floor(Date.now() / 1000);
+        
+        const updateData = {
+          enviado: true,
+          plantilla_enviada: templateName || 'plantilla-desconocida',
+          plantilla_at: currentTimestamp
+        };
+        
+        console.log('📝 Actualizando usuario con datos completos:', updateData);
+        
         await UserModel.updateOne(
           { whatsapp: phoneNumber },
-          { $set: { enviado: true } }
+          { $set: updateData }
         );
+        
+        console.log('✅ Usuario marcado como enviado con plantilla_at:', currentTimestamp);
       } catch (updateError) {
         console.error('Error updating user after sending message:', updateError);
         // Don't fail the request if the update fails, the message was sent successfully

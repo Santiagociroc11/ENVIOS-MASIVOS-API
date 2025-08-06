@@ -421,3 +421,36 @@ export const deleteCampaignStats = async (campaignId: string): Promise<any> => {
     throw error;
   }
 };
+
+export const fixCampaignPlantillaFields = async (campaignId: string): Promise<any> => {
+  try {
+    console.log('🔧 === FRONTEND: ARREGLANDO CAMPOS PLANTILLA ===');
+    console.log('🆔 Campaign ID:', campaignId);
+    console.log('🌐 URL:', `${API_BASE_URL}/campaigns/${campaignId}/fix-plantilla-fields`);
+    
+    const response = await axios.post(`${API_BASE_URL}/campaigns/${campaignId}/fix-plantilla-fields`);
+    
+    console.log('✅ === FRONTEND: RESPUESTA RECIBIDA ===');
+    console.log('📊 Status:', response.status);
+    console.log('📦 Response Data:');
+    console.log(JSON.stringify(response.data, null, 2));
+    console.log('=====================================');
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error fixing campaign plantilla fields:', error);
+    
+    // Extract detailed error message from server response
+    let errorMessage = 'Error desconocido al arreglar campos';
+    
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
+    } else if (error.response?.data?.details) {
+      errorMessage = error.response.data.details;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    throw new Error(errorMessage);
+  }
+};
