@@ -402,6 +402,22 @@ export const fetchCampaignsList = async (page: number = 1, limit: number = 20): 
   }
 };
 
+export const fetchCampaignsMiniMetrics = async (campaignIds: string[]): Promise<any> => {
+  try {
+    console.log(`🎯 Fetching mini metrics for campaigns:`, campaignIds);
+    const response = await axios.post(`${API_BASE_URL}/stats/campaigns/mini-metrics`, {
+      campaignIds
+    });
+    console.log('✅ Mini metrics fetched successfully:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error fetching mini metrics:', error);
+    console.error('❌ Error response:', error.response?.data);
+    console.error('❌ Error status:', error.response?.status);
+    return { metrics: {} };
+  }
+};
+
 export const fetchCampaignStats = async (campaignId: string): Promise<any> => {
   try {
     const response = await axios.get(`${API_BASE_URL}/stats/campaign/${campaignId}/stats`);

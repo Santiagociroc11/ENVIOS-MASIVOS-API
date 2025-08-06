@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, Users, MessageCircle, CreditCard, Eye, Trash2, Calendar, Database, UserCheck, SortAsc, SortDesc, CheckCircle, XCircle, ArrowUpDown, DollarSign, PiggyBank, Target, Zap } from 'lucide-react';
-import { fetchCampaignsList, fetchCampaignStats, deleteCampaignStats, fetchGlobalStats } from '../api/services';
+import { fetchCampaignsList, fetchCampaignStats, deleteCampaignStats, fetchGlobalStats, fetchCampaignsMiniMetrics } from '../api/services';
 
 interface Campaign {
   campaignId: string;
@@ -9,20 +9,6 @@ interface Campaign {
   totalSent: number;
   databases: string[];
   notes: string;
-  miniMetrics?: {
-    respondieron: number;
-    nuevasPagados: number;
-    nuevosUpsells: number;
-    tasaRespuesta: string;
-    tasaConversion: string;
-    tasaUpsell: string;
-    roas: string;
-    ingresoTotal: string;
-    costoEnvio: string;
-    rentabilidad: string;
-    roasNumerico: number;
-    rentabilidadNumerica: number;
-  };
 }
 
 interface GlobalStats {
@@ -119,9 +105,11 @@ const StatsPanel: React.FC = () => {
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
   const [campaignStats, setCampaignStats] = useState<CampaignStats | null>(null);
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
+  const [miniMetrics, setMiniMetrics] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [loadingStats, setLoadingStats] = useState(false);
   const [loadingGlobalStats, setLoadingGlobalStats] = useState(false);
+  const [loadingMiniMetrics, setLoadingMiniMetrics] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<any>(null);
   const [activeStatsTab, setActiveStatsTab] = useState<'overview' | 'users'>('overview');
@@ -130,21 +118,35 @@ const StatsPanel: React.FC = () => {
 
 
   useEffect(() => {
-    loadCampaigns();
-    loadGlobalStats();
+    loadData();
   }, [currentPage]);
+
+  // Carga progresiva: primero campañas básicas, luego estadísticas globales, luego métricas mini
+  const loadData = async () => {
+    console.log('🚀 Starting progressive data loading...');
+    
+    // 1. Cargar campañas básicas primero (más rápido)
+    const campaignsData = await loadCampaigns();
+    
+    // 2. Cargar estadísticas globales en paralelo con métricas mini (usando los datos de campañas)
+    Promise.all([
+      loadGlobalStats(),
+      loadMiniMetricsForCampaigns(campaignsData?.campaigns || [])
+    ]);
+  };
 
   const loadCampaigns = async () => {
     setLoading(true);
     try {
-      console.log('📊 Loading campaigns from API...');
+      console.log('📊 Loading basic campaigns from API...');
       const response = await fetchCampaignsList(currentPage, 10);
-      console.log('📊 API Response:', response);
+      console.log('📊 Basic campaigns loaded:', response.campaigns?.length || 0);
       setCampaigns(response.campaigns || []);
       setPagination(response.pagination);
-      console.log('📊 Campaigns loaded:', response.campaigns?.length || 0);
+      return response;
     } catch (error) {
       console.error('❌ Error loading campaigns:', error);
+      return { campaigns: [], pagination: null };
     } finally {
       setLoading(false);
     }
@@ -155,13 +157,33 @@ const StatsPanel: React.FC = () => {
     try {
       console.log('🌍 Loading global statistics...');
       const response = await fetchGlobalStats();
-      console.log('🌍 Global stats response:', response);
       setGlobalStats(response);
       console.log('🌍 Global stats loaded successfully');
     } catch (error) {
       console.error('❌ Error loading global stats:', error);
     } finally {
       setLoadingGlobalStats(false);
+    }
+  };
+
+  const loadMiniMetricsForCampaigns = async (campaignsList: Campaign[]) => {
+    setLoadingMiniMetrics(true);
+    try {
+      if (campaignsList.length === 0) {
+        console.log('⏩ No campaigns to load metrics for');
+        return;
+      }
+      
+      const campaignIds = campaignsList.map(c => c.campaignId);
+      console.log('📊 Loading mini metrics for', campaignIds.length, 'campaigns...');
+      
+      const response = await fetchCampaignsMiniMetrics(campaignIds);
+      setMiniMetrics(response.metrics || {});
+      console.log('📊 Mini metrics loaded successfully');
+    } catch (error) {
+      console.error('❌ Error loading mini metrics:', error);
+    } finally {
+      setLoadingMiniMetrics(false);
     }
   };
 
@@ -1111,32 +1133,32 @@ const StatsPanel: React.FC = () => {
                       )}
 
                       {/* Métricas Mini */}
-                      {campaign.miniMetrics && (
+                      {miniMetrics[campaign.campaignId] ? (
                         <div className="mt-3 space-y-2">
                           {/* Primera fila de métricas */}
                           <div className="grid grid-cols-3 gap-2">
                             <div className="bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded text-center">
                               <div className="text-xs font-semibold text-green-700 dark:text-green-300">
-                                {campaign.miniMetrics.nuevasPagados}
+                                {miniMetrics[campaign.campaignId].nuevasPagados}
                               </div>
                               <div className="text-[10px] text-green-600 dark:text-green-400">
-                                {campaign.miniMetrics.tasaConversion}
+                                {miniMetrics[campaign.campaignId].tasaConversion}
                               </div>
                             </div>
                             <div className="bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded text-center">
                               <div className="text-xs font-semibold text-blue-700 dark:text-blue-300">
-                                {campaign.miniMetrics.respondieron}
+                                {miniMetrics[campaign.campaignId].respondieron}
                               </div>
                               <div className="text-[10px] text-blue-600 dark:text-blue-400">
-                                {campaign.miniMetrics.tasaRespuesta}
+                                {miniMetrics[campaign.campaignId].tasaRespuesta}
                               </div>
                             </div>
                             <div className="bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded text-center">
                               <div className="text-xs font-semibold text-purple-700 dark:text-purple-300">
-                                {campaign.miniMetrics.nuevosUpsells}
+                                {miniMetrics[campaign.campaignId].nuevosUpsells}
                               </div>
                               <div className="text-[10px] text-purple-600 dark:text-purple-400">
-                                {campaign.miniMetrics.tasaUpsell}
+                                {miniMetrics[campaign.campaignId].tasaUpsell}
                               </div>
                             </div>
                           </div>
@@ -1144,39 +1166,52 @@ const StatsPanel: React.FC = () => {
                           {/* Segunda fila: ROAS y Rentabilidad */}
                           <div className="grid grid-cols-2 gap-2">
                             <div className={`px-2 py-1 rounded text-center ${
-                              campaign.miniMetrics.roasNumerico > 2 
+                              miniMetrics[campaign.campaignId].roasNumerico > 2 
                                 ? 'bg-green-50 dark:bg-green-900/20' 
-                                : campaign.miniMetrics.roasNumerico > 1 
+                                : miniMetrics[campaign.campaignId].roasNumerico > 1 
                                   ? 'bg-yellow-50 dark:bg-yellow-900/20' 
                                   : 'bg-red-50 dark:bg-red-900/20'
                             }`}>
                               <div className={`text-xs font-bold ${
-                                campaign.miniMetrics.roasNumerico > 2 
+                                miniMetrics[campaign.campaignId].roasNumerico > 2 
                                   ? 'text-green-700 dark:text-green-300' 
-                                  : campaign.miniMetrics.roasNumerico > 1 
+                                  : miniMetrics[campaign.campaignId].roasNumerico > 1 
                                     ? 'text-yellow-700 dark:text-yellow-300' 
                                     : 'text-red-700 dark:text-red-300'
                               }`}>
-                                {campaign.miniMetrics.roas}
+                                {miniMetrics[campaign.campaignId].roas}
                               </div>
                               <div className="text-[10px] text-gray-600 dark:text-gray-400">ROAS</div>
                             </div>
                             <div className={`px-2 py-1 rounded text-center ${
-                              campaign.miniMetrics.rentabilidadNumerica > 0 
+                              miniMetrics[campaign.campaignId].rentabilidadNumerica > 0 
                                 ? 'bg-green-50 dark:bg-green-900/20' 
                                 : 'bg-red-50 dark:bg-red-900/20'
                             }`}>
                               <div className={`text-xs font-bold ${
-                                campaign.miniMetrics.rentabilidadNumerica > 0 
+                                miniMetrics[campaign.campaignId].rentabilidadNumerica > 0 
                                   ? 'text-green-700 dark:text-green-300' 
                                   : 'text-red-700 dark:text-red-300'
                               }`}>
-                                ${Math.round(campaign.miniMetrics.rentabilidadNumerica / 1000)}k
+                                ${Math.round(miniMetrics[campaign.campaignId].rentabilidadNumerica / 1000)}k
                               </div>
                               <div className="text-[10px] text-gray-600 dark:text-gray-400">
-                                {campaign.miniMetrics.rentabilidadNumerica > 0 ? 'Ganancia' : 'Pérdida'}
+                                {miniMetrics[campaign.campaignId].rentabilidadNumerica > 0 ? 'Ganancia' : 'Pérdida'}
                               </div>
                             </div>
+                          </div>
+                        </div>
+                      ) : loadingMiniMetrics ? (
+                        <div className="mt-3 p-2 text-center">
+                          <div className="text-xs text-gray-500 flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
+                            Cargando métricas...
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 p-2 text-center">
+                          <div className="text-xs text-gray-400">
+                            Métricas no disponibles
                           </div>
                         </div>
                       )}
@@ -1189,7 +1224,7 @@ const StatsPanel: React.FC = () => {
                       
                       <div className="mt-2 flex justify-between items-center">
                         <div className="text-[10px] text-gray-400">
-                          {campaign.miniMetrics ? 'Con métricas' : 'Sin métricas'}
+                          {miniMetrics[campaign.campaignId] ? 'Con métricas' : loadingMiniMetrics ? 'Cargando...' : 'Sin métricas'}
                         </div>
                         <button className="text-blue-600 hover:text-blue-800 text-xs flex items-center">
                           <Eye className="h-3 w-3 mr-1" />

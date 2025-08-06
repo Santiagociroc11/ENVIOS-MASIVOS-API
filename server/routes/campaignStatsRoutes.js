@@ -3,6 +3,15 @@ import CampaignStats from '../models/campaignStatsModel.js';
 import { getDatabase } from '../config/databases.js';
 import { getDatabaseModel } from '../models/dynamicUserModel.js';
 
+// Cache para estadísticas globales
+let globalStatsCache = {
+  data: null,
+  lastUpdated: null,
+  isUpdating: false
+};
+
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos en millisegundos
+
 // Función para obtener la tasa de cambio USD/COP
 const getExchangeRate = async () => {
   try {
@@ -189,10 +198,10 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// Obtener todas las campañas con métricas mini
+// Obtener lista básica de campañas (sin métricas pesadas)
 router.get('/campaigns', async (req, res) => {
   try {
-    console.log('🔍 GET /campaigns - Fetching campaigns with mini metrics...');
+    console.log('🔍 GET /campaigns - Fetching basic campaigns list...');
     
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -201,61 +210,126 @@ router.get('/campaigns', async (req, res) => {
     console.log(`📄 Page: ${page}, Limit: ${limit}, Skip: ${skip}`);
 
     const campaigns = await CampaignStats.find()
-      .select('campaignId templateName sentAt totalSent databases notes usersSnapshot')
+      .select('campaignId templateName sentAt totalSent databases notes')
       .sort({ sentAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // Usar lean() para mejor rendimiento
 
     const total = await CampaignStats.countDocuments();
 
     console.log(`📊 Found ${campaigns.length} campaigns, Total: ${total}`);
 
-    // Obtener tasa de cambio para cálculos económicos
+    res.json({
+      campaigns,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching campaigns:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
+  }
+});
+
+// Endpoint separado para obtener métricas mini de campañas específicas
+router.post('/campaigns/mini-metrics', async (req, res) => {
+  try {
+    console.log('📊 POST /campaigns/mini-metrics - Fetching mini metrics for specific campaigns...');
+    const startTime = Date.now();
+    
+    const { campaignIds } = req.body;
+    
+    if (!campaignIds || !Array.isArray(campaignIds)) {
+      return res.status(400).json({ error: 'campaignIds array is required' });
+    }
+
+    console.log(`🎯 Calculating metrics for ${campaignIds.length} campaigns`);
+
+    // Obtener campañas específicas
+    const campaigns = await CampaignStats.find({
+      campaignId: { $in: campaignIds }
+    })
+    .select('campaignId templateName sentAt totalSent databases usersSnapshot')
+    .lean();
+
+    if (campaigns.length === 0) {
+      return res.json({ metrics: {} });
+    }
+
+    // Obtener tasa de cambio
     const exchangeRate = await getExchangeRate();
 
-    // Calcular métricas mini para cada campaña
-    const campaignsWithMetrics = await Promise.all(campaigns.map(async (campaign) => {
+    // Agrupar consultas de usuarios por base de datos (optimización similar a global stats)
+    const userQueries = new Map();
+    
+    for (const campaign of campaigns) {
+      for (const userSnapshot of campaign.usersSnapshot) {
+        for (const dbKey of campaign.databases) {
+          if (!userQueries.has(dbKey)) {
+            userQueries.set(dbKey, new Set());
+          }
+          userQueries.get(dbKey).add(userSnapshot.whatsapp);
+        }
+      }
+    }
+
+    // Hacer consultas optimizadas en lotes
+    const allUsersData = new Map();
+    
+    await Promise.all(Array.from(userQueries.entries()).map(async ([dbKey, whatsappNumbers]) => {
       try {
-        // Obtener estados actuales de los usuarios para calcular métricas
+        const dbConfig = getDatabase(dbKey);
+        if (!dbConfig) return;
+        
+        const UserModel = await getDatabaseModel(dbConfig);
+        
+        const users = await UserModel.find({ 
+          whatsapp: { $in: Array.from(whatsappNumbers) } 
+        })
+        .select('whatsapp estado medio pagado_at upsell_pagado_at respondio_masivo plantilla_at flag_masivo')
+        .lean();
+        
+        for (const user of users) {
+          allUsersData.set(user.whatsapp, { ...user, _sourceDatabase: dbKey });
+        }
+      } catch (error) {
+        console.error(`Error querying database ${dbKey}:`, error);
+      }
+    }));
+
+    // Calcular métricas para cada campaña usando datos ya obtenidos
+    const metricsResults = {};
+    
+    for (const campaign of campaigns) {
+      try {
         const currentStates = [];
         
+        // Procesar usuarios usando datos ya obtenidos
         for (const userSnapshot of campaign.usersSnapshot) {
-          try {
-            let currentUserData = null;
-            
-            // Buscar el usuario en las bases de datos para obtener su estado actual
-            for (const dbKey of campaign.databases) {
-              const dbConfig = getDatabase(dbKey);
-              if (!dbConfig) continue;
-              
-              const UserModel = await getDatabaseModel(dbConfig);
-              currentUserData = await UserModel.findOne({ whatsapp: userSnapshot.whatsapp })
-                .select('whatsapp estado medio pagado_at upsell_pagado_at respondio_masivo plantilla_at flag_masivo')
-                .lean();
-              
-              if (currentUserData) {
-                currentUserData._sourceDatabase = dbKey;
-                break;
-              }
-            }
-
-            if (currentUserData) {
-              currentStates.push({
-                estadoInicial: userSnapshot.estadoInicial,
-                estadoActual: currentUserData.estado || 'desconocido',
-                pagadoAtInicial: userSnapshot.pagadoAtInicial,
-                pagadoAtActual: currentUserData.pagado_at,
-                upsellAtInicial: userSnapshot.upsellAtInicial,
-                upsellAtActual: currentUserData.upsell_pagado_at,
-                plantillaAtInicial: userSnapshot.plantillaAtInicial,
-                plantillaAtActual: currentUserData.plantilla_at,
-                flagMasivoInicial: userSnapshot.flagMasivoInicial,
-                flagMasivoActual: currentUserData.flag_masivo || false,
-                respondioMasivo: currentUserData.respondio_masivo || false
-              });
-            }
-          } catch (userError) {
-            console.error(`Error processing user ${userSnapshot.whatsapp}:`, userError);
+          const currentUserData = allUsersData.get(userSnapshot.whatsapp);
+          
+          if (currentUserData) {
+            currentStates.push({
+              estadoInicial: userSnapshot.estadoInicial,
+              estadoActual: currentUserData.estado || 'desconocido',
+              pagadoAtInicial: userSnapshot.pagadoAtInicial,
+              pagadoAtActual: currentUserData.pagado_at,
+              upsellAtInicial: userSnapshot.upsellAtInicial,
+              upsellAtActual: currentUserData.upsell_pagado_at,
+              plantillaAtInicial: userSnapshot.plantillaAtInicial,
+              plantillaAtActual: currentUserData.plantilla_at,
+              flagMasivoInicial: userSnapshot.flagMasivoInicial,
+              flagMasivoActual: currentUserData.flag_masivo || false,
+              respondioMasivo: currentUserData.respondio_masivo || false
+            });
           }
         }
 
@@ -302,71 +376,51 @@ router.get('/campaigns', async (req, res) => {
         const tasaConversion = campaign.totalSent > 0 ? (nuevasPagados / campaign.totalSent * 100) : 0;
         const tasaUpsell = campaign.totalSent > 0 ? (nuevosUpsells / campaign.totalSent * 100) : 0;
 
-        // Retornar campaña con métricas mini
-        return {
-          campaignId: campaign.campaignId,
-          templateName: campaign.templateName,
-          sentAt: campaign.sentAt,
-          totalSent: campaign.totalSent,
-          databases: campaign.databases,
-          notes: campaign.notes,
-          // Métricas mini
-          miniMetrics: {
-            respondieron,
-            nuevasPagados,
-            nuevosUpsells,
-            tasaRespuesta: tasaRespuesta.toFixed(1) + '%',
-            tasaConversion: tasaConversion.toFixed(1) + '%',
-            tasaUpsell: tasaUpsell.toFixed(1) + '%',
-            roas: roas.toFixed(1) + 'x',
-            ingresoTotal: '$' + ingresoTotal.toLocaleString() + ' COP',
-            costoEnvio: '$' + costoEnvio.toLocaleString() + ' COP',
-            rentabilidad: '$' + rentabilidad.toLocaleString() + ' COP',
-            roasNumerico: roas,
-            rentabilidadNumerica: rentabilidad
-          }
+        // Guardar métricas para esta campaña
+        metricsResults[campaign.campaignId] = {
+          respondieron,
+          nuevasPagados,
+          nuevosUpsells,
+          tasaRespuesta: tasaRespuesta.toFixed(1) + '%',
+          tasaConversion: tasaConversion.toFixed(1) + '%',
+          tasaUpsell: tasaUpsell.toFixed(1) + '%',
+          roas: roas.toFixed(1) + 'x',
+          ingresoTotal: '$' + ingresoTotal.toLocaleString() + ' COP',
+          costoEnvio: '$' + costoEnvio.toLocaleString() + ' COP',
+          rentabilidad: '$' + rentabilidad.toLocaleString() + ' COP',
+          roasNumerico: roas,
+          rentabilidadNumerica: rentabilidad
         };
 
       } catch (campaignError) {
         console.error(`Error calculating metrics for campaign ${campaign.campaignId}:`, campaignError);
-        // Retornar campaña con métricas vacías en caso de error
-        return {
-          campaignId: campaign.campaignId,
-          templateName: campaign.templateName,
-          sentAt: campaign.sentAt,
-          totalSent: campaign.totalSent,
-          databases: campaign.databases,
-          notes: campaign.notes,
-          miniMetrics: {
-            respondieron: 0,
-            nuevasPagados: 0,
-            nuevosUpsells: 0,
-            tasaRespuesta: '0.0%',
-            tasaConversion: '0.0%',
-            tasaUpsell: '0.0%',
-            roas: '0.0x',
-            ingresoTotal: '$0 COP',
-            costoEnvio: '$0 COP',
-            rentabilidad: '$0 COP',
-            roasNumerico: 0,
-            rentabilidadNumerica: 0
-          }
+        // Métricas vacías en caso de error
+        metricsResults[campaign.campaignId] = {
+          respondieron: 0,
+          nuevasPagados: 0,
+          nuevosUpsells: 0,
+          tasaRespuesta: '0.0%',
+          tasaConversion: '0.0%',
+          tasaUpsell: '0.0%',
+          roas: '0.0x',
+          ingresoTotal: '$0 COP',
+          costoEnvio: '$0 COP',
+          rentabilidad: '$0 COP',
+          roasNumerico: 0,
+          rentabilidadNumerica: 0
         };
       }
-    }));
+    }
+
+    const endTime = Date.now();
+    console.log(`⚡ Mini metrics calculated in ${endTime - startTime}ms for ${campaigns.length} campaigns`);
 
     res.json({
-      campaigns: campaignsWithMetrics,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
+      metrics: metricsResults
     });
 
   } catch (error) {
-    console.error('❌ Error fetching campaigns:', error);
+    console.error('❌ Error fetching mini metrics:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       details: error.message 
@@ -625,203 +679,222 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
   }
 });
 
-// Obtener estadísticas globales de todas las campañas
-router.get('/global-stats', async (req, res) => {
-  try {
-    console.log('📊 GET /global-stats - Fetching global statistics...');
-    
-    // Obtener todas las campañas
-    const allCampaigns = await CampaignStats.find();
-    
-    if (allCampaigns.length === 0) {
-      return res.json({
-        totalCampaigns: 0,
-        globalStats: {
-          totalEnviados: 0,
-          totalRespondieron: 0,
-          totalNuevasPagados: 0,
-          totalNuevosUpsells: 0,
-          totalCambiosEstado: 0
-        },
-        globalEconomicAnalysis: {
-          ingresoTotal: 0,
-          costoTotal: 0,
-          rentabilidadNeta: 0,
-          roas: 0,
-          tasaCambio: await getExchangeRate()
-        },
-        globalSummary: {
-          tasaRespuestaPromedio: '0.00%',
-          tasaConversionPromedio: '0.00%',
-          tasaUpsellPromedio: '0.00%',
-          roasPromedio: '0.00x'
-        },
-        dateRange: {
-          from: null,
-          to: null
-        }
-      });
+// Función para calcular estadísticas globales de forma optimizada
+const calculateGlobalStatsOptimized = async () => {
+  console.log('🚀 Calculating global stats optimized...');
+  const startTime = Date.now();
+  
+  // Obtener todas las campañas básicas
+  const allCampaigns = await CampaignStats.find().lean();
+  
+  if (allCampaigns.length === 0) {
+    return {
+      totalCampaigns: 0,
+      globalStats: {
+        totalEnviados: 0,
+        totalRespondieron: 0,
+        totalNuevasPagados: 0,
+        totalNuevosUpsells: 0,
+        totalCambiosEstado: 0
+      },
+      globalEconomicAnalysis: {
+        ingresoTotal: 0,
+        costoTotal: 0,
+        rentabilidadNeta: 0,
+        roas: 0,
+        tasaCambio: await getExchangeRate()
+      },
+      globalSummary: {
+        tasaRespuestaPromedio: '0.00%',
+        tasaConversionPromedio: '0.00%',
+        tasaUpsellPromedio: '0.00%',
+        roasPromedio: '0.00x'
+      },
+      dateRange: { from: null, to: null }
+    };
+  }
+
+  // Obtener tasa de cambio
+  const exchangeRate = await getExchangeRate();
+  
+  // Variables para acumular totales
+  let totalEnviados = 0;
+  let totalRespondieron = 0;
+  let totalNuevasPagados = 0;
+  let totalNuevosUpsells = 0;
+  let totalCambiosEstado = 0;
+  let totalIngresoCompras = 0;
+  let totalIngresoUpsells = 0;
+  let totalCostoEnvio = 0;
+  let campañasConDatos = 0;
+  let sumaRoas = 0;
+  let sumaTasaRespuesta = 0;
+  let sumaTasaConversion = 0;
+  let sumaTasaUpsell = 0;
+
+  // Fechas para rango
+  let fechaMinima = null;
+  let fechaMaxima = null;
+
+  // Agrupar consultas por base de datos para optimizar
+  const userQueries = new Map();
+  
+  for (const campaign of allCampaigns) {
+    // Actualizar fechas de rango
+    if (!fechaMinima || campaign.sentAt < fechaMinima) {
+      fechaMinima = campaign.sentAt;
+    }
+    if (!fechaMaxima || campaign.sentAt > fechaMaxima) {
+      fechaMaxima = campaign.sentAt;
     }
 
-    // Obtener tasa de cambio
-    const exchangeRate = await getExchangeRate();
-    
-    // Variables para acumular totales
-    let totalEnviados = 0;
-    let totalRespondieron = 0;
-    let totalNuevasPagados = 0;
-    let totalNuevosUpsells = 0;
-    let totalCambiosEstado = 0;
-    let totalIngresoCompras = 0;
-    let totalIngresoUpsells = 0;
-    let totalCostoEnvio = 0;
-    let campañasConDatos = 0;
-    let sumaRoas = 0;
-    let sumaTasaRespuesta = 0;
-    let sumaTasaConversion = 0;
-    let sumaTasaUpsell = 0;
-
-    // Fechas para rango
-    let fechaMinima = null;
-    let fechaMaxima = null;
-
-    // Procesar cada campaña para obtener estadísticas actualizadas
-    for (const campaign of allCampaigns) {
-      try {
-        // Actualizar fechas de rango
-        if (!fechaMinima || campaign.sentAt < fechaMinima) {
-          fechaMinima = campaign.sentAt;
+    // Agrupar usuarios por base de datos
+    for (const userSnapshot of campaign.usersSnapshot) {
+      for (const dbKey of campaign.databases) {
+        if (!userQueries.has(dbKey)) {
+          userQueries.set(dbKey, new Set());
         }
-        if (!fechaMaxima || campaign.sentAt > fechaMaxima) {
-          fechaMaxima = campaign.sentAt;
-        }
-
-        // Obtener estados actuales de los usuarios para esta campaña
-        const currentStates = [];
-        
-        for (const userSnapshot of campaign.usersSnapshot) {
-          try {
-            let currentUserData = null;
-            
-            // Buscar el usuario en las bases de datos para obtener su estado actual
-            for (const dbKey of campaign.databases) {
-              const dbConfig = getDatabase(dbKey);
-              if (!dbConfig) continue;
-              
-              const UserModel = await getDatabaseModel(dbConfig);
-              currentUserData = await UserModel.findOne({ whatsapp: userSnapshot.whatsapp })
-                .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso respondio_masivo plantilla_at flag_masivo')
-                .lean();
-              
-              if (currentUserData) {
-                currentUserData._sourceDatabase = dbKey;
-                break;
-              }
-            }
-
-            if (currentUserData) {
-              currentStates.push({
-                whatsapp: currentUserData.whatsapp,
-                estadoInicial: userSnapshot.estadoInicial,
-                estadoActual: currentUserData.estado || 'desconocido',
-                pagadoAtInicial: userSnapshot.pagadoAtInicial,
-                pagadoAtActual: currentUserData.pagado_at,
-                upsellAtInicial: userSnapshot.upsellAtInicial,
-                upsellAtActual: currentUserData.upsell_pagado_at,
-                plantillaAtInicial: userSnapshot.plantillaAtInicial,
-                plantillaAtActual: currentUserData.plantilla_at,
-                flagMasivoInicial: userSnapshot.flagMasivoInicial,
-                flagMasivoActual: currentUserData.flag_masivo || false,
-                respondioMasivo: currentUserData.respondio_masivo || false
-              });
-            }
-          } catch (userError) {
-            console.error(`Error processing user ${userSnapshot.whatsapp}:`, userError);
-          }
-        }
-
-        // Calcular estadísticas para esta campaña
-        const campaignDate = campaign.sentAt;
-        
-        const campaignStats = {
-          totalEnviados: campaign.totalSent,
-          respondieron: currentStates.filter(u => {
-            const hasStateChange = u.estadoInicial !== u.estadoActual;
-            const hasResponseState = u.estadoActual === 'respondido' || u.estadoActual === 'respondido-masivo' || u.respondioMasivo;
-            const hasFlagMasivo = u.flagMasivoActual === true;
-            return hasStateChange && hasResponseState && hasFlagMasivo;
-          }).length,
-          nuevasPagados: currentStates.filter(u => {
-            const wasNotPaid = u.estadoInicial !== 'pagado' && !u.pagadoAtInicial;
-            const isNowPaid = u.estadoActual === 'pagado' || u.pagadoAtActual;
-            const hasPlantillaTimestamp = u.plantillaAtActual || u.plantillaAtInicial;
-            const hasPagadoTimestamp = u.pagadoAtActual;
-            const plantillaBeforePago = hasPlantillaTimestamp && hasPagadoTimestamp && 
-              (u.plantillaAtActual || u.plantillaAtInicial) < u.pagadoAtActual;
-            const hasFlagMasivo = u.flagMasivoActual === true;
-            return wasNotPaid && isNowPaid && plantillaBeforePago && hasFlagMasivo;
-          }).length,
-          nuevosUpsells: currentStates.filter(u => {
-            const hadNoUpsell = !u.upsellAtInicial;
-            const hasUpsellNow = u.upsellAtActual;
-            const upsellAfterCampaign = u.upsellAtActual && 
-              new Date(u.upsellAtActual).getTime() > campaignDate.getTime();
-            const hasFlagMasivo = u.flagMasivoActual === true;
-            return hadNoUpsell && hasUpsellNow && upsellAfterCampaign && hasFlagMasivo;
-          }).length,
-          cambiosEstado: currentStates.filter(u => 
-            u.estadoInicial !== u.estadoActual
-          ).length
-        };
-
-        // Acumular totales
-        totalEnviados += campaignStats.totalEnviados;
-        totalRespondieron += campaignStats.respondieron;
-        totalNuevasPagados += campaignStats.nuevasPagados;
-        totalNuevosUpsells += campaignStats.nuevosUpsells;
-        totalCambiosEstado += campaignStats.cambiosEstado;
-
-        // Calcular ingresos y costos para esta campaña
-        const ingresoCompras = campaignStats.nuevasPagados * 12900;
-        const ingresoUpsells = campaignStats.nuevosUpsells * 19000;
-        const costoEnvio = Math.round((campaignStats.totalEnviados * 0.0125) * exchangeRate);
-        
-        totalIngresoCompras += ingresoCompras;
-        totalIngresoUpsells += ingresoUpsells;
-        totalCostoEnvio += costoEnvio;
-
-        // Calcular ROAS para esta campaña
-        const campanhaRoas = costoEnvio > 0 ? ((ingresoCompras + ingresoUpsells) / costoEnvio) : 0;
-        
-        // Calcular tasas para promedio
-        const tasaRespuesta = campaignStats.totalEnviados > 0 ? (campaignStats.respondieron / campaignStats.totalEnviados * 100) : 0;
-        const tasaConversion = campaignStats.totalEnviados > 0 ? (campaignStats.nuevasPagados / campaignStats.totalEnviados * 100) : 0;
-        const tasaUpsell = campaignStats.totalEnviados > 0 ? (campaignStats.nuevosUpsells / campaignStats.totalEnviados * 100) : 0;
-
-        // Acumular para promedios (solo campañas con datos)
-        if (campaignStats.totalEnviados > 0) {
-          campañasConDatos++;
-          sumaRoas += campanhaRoas;
-          sumaTasaRespuesta += tasaRespuesta;
-          sumaTasaConversion += tasaConversion;
-          sumaTasaUpsell += tasaUpsell;
-        }
-
-      } catch (campaignError) {
-        console.error(`Error processing campaign ${campaign.campaignId}:`, campaignError);
+        userQueries.get(dbKey).add(userSnapshot.whatsapp);
       }
     }
+  }
 
-    // Calcular estadísticas globales finales
-    const globalStats = {
+  // Hacer consultas optimizadas por lotes por base de datos
+  const allUsersData = new Map();
+  
+  await Promise.all(Array.from(userQueries.entries()).map(async ([dbKey, whatsappNumbers]) => {
+    try {
+      const dbConfig = getDatabase(dbKey);
+      if (!dbConfig) return;
+      
+      const UserModel = await getDatabaseModel(dbConfig);
+      
+      // Consulta optimizada usando $in para obtener múltiples usuarios de una vez
+      const users = await UserModel.find({ 
+        whatsapp: { $in: Array.from(whatsappNumbers) } 
+      })
+      .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso respondio_masivo plantilla_at flag_masivo')
+      .lean();
+      
+      // Indexar por whatsapp para acceso rápido
+      for (const user of users) {
+        allUsersData.set(user.whatsapp, { ...user, _sourceDatabase: dbKey });
+      }
+    } catch (error) {
+      console.error(`Error querying database ${dbKey}:`, error);
+    }
+  }));
+
+  // Procesar cada campaña usando los datos ya obtenidos
+  for (const campaign of allCampaigns) {
+    try {
+      const currentStates = [];
+      
+      // Procesar usuarios usando datos ya obtenidos (sin consultas adicionales)
+      for (const userSnapshot of campaign.usersSnapshot) {
+        const currentUserData = allUsersData.get(userSnapshot.whatsapp);
+        
+        if (currentUserData) {
+          currentStates.push({
+            whatsapp: currentUserData.whatsapp,
+            estadoInicial: userSnapshot.estadoInicial,
+            estadoActual: currentUserData.estado || 'desconocido',
+            pagadoAtInicial: userSnapshot.pagadoAtInicial,
+            pagadoAtActual: currentUserData.pagado_at,
+            upsellAtInicial: userSnapshot.upsellAtInicial,
+            upsellAtActual: currentUserData.upsell_pagado_at,
+            plantillaAtInicial: userSnapshot.plantillaAtInicial,
+            plantillaAtActual: currentUserData.plantilla_at,
+            flagMasivoInicial: userSnapshot.flagMasivoInicial,
+            flagMasivoActual: currentUserData.flag_masivo || false,
+            respondioMasivo: currentUserData.respondio_masivo || false
+          });
+        }
+      }
+
+      // Calcular estadísticas para esta campaña (usando lógica existente)
+      const campaignDate = campaign.sentAt;
+      
+      const campaignStats = {
+        totalEnviados: campaign.totalSent,
+        respondieron: currentStates.filter(u => {
+          const hasStateChange = u.estadoInicial !== u.estadoActual;
+          const hasResponseState = u.estadoActual === 'respondido' || u.estadoActual === 'respondido-masivo' || u.respondioMasivo;
+          const hasFlagMasivo = u.flagMasivoActual === true;
+          return hasStateChange && hasResponseState && hasFlagMasivo;
+        }).length,
+        nuevasPagados: currentStates.filter(u => {
+          const wasNotPaid = u.estadoInicial !== 'pagado' && !u.pagadoAtInicial;
+          const isNowPaid = u.estadoActual === 'pagado' || u.pagadoAtActual;
+          const hasPlantillaTimestamp = u.plantillaAtActual || u.plantillaAtInicial;
+          const hasPagadoTimestamp = u.pagadoAtActual;
+          const plantillaBeforePago = hasPlantillaTimestamp && hasPagadoTimestamp && 
+            (u.plantillaAtActual || u.plantillaAtInicial) < u.pagadoAtActual;
+          const hasFlagMasivo = u.flagMasivoActual === true;
+          return wasNotPaid && isNowPaid && plantillaBeforePago && hasFlagMasivo;
+        }).length,
+        nuevosUpsells: currentStates.filter(u => {
+          const hadNoUpsell = !u.upsellAtInicial;
+          const hasUpsellNow = u.upsellAtActual;
+          const upsellAfterCampaign = u.upsellAtActual && 
+            new Date(u.upsellAtActual).getTime() > campaignDate.getTime();
+          const hasFlagMasivo = u.flagMasivoActual === true;
+          return hadNoUpsell && hasUpsellNow && upsellAfterCampaign && hasFlagMasivo;
+        }).length,
+        cambiosEstado: currentStates.filter(u => 
+          u.estadoInicial !== u.estadoActual
+        ).length
+      };
+
+      // Acumular totales
+      totalEnviados += campaignStats.totalEnviados;
+      totalRespondieron += campaignStats.respondieron;
+      totalNuevasPagados += campaignStats.nuevasPagados;
+      totalNuevosUpsells += campaignStats.nuevosUpsells;
+      totalCambiosEstado += campaignStats.cambiosEstado;
+
+      // Calcular ingresos y costos para esta campaña
+      const ingresoCompras = campaignStats.nuevasPagados * 12900;
+      const ingresoUpsells = campaignStats.nuevosUpsells * 19000;
+      const costoEnvio = Math.round((campaignStats.totalEnviados * 0.0125) * exchangeRate);
+      
+      totalIngresoCompras += ingresoCompras;
+      totalIngresoUpsells += ingresoUpsells;
+      totalCostoEnvio += costoEnvio;
+
+      // Calcular ROAS para esta campaña
+      const campanhaRoas = costoEnvio > 0 ? ((ingresoCompras + ingresoUpsells) / costoEnvio) : 0;
+      
+      // Calcular tasas para promedio
+      const tasaRespuesta = campaignStats.totalEnviados > 0 ? (campaignStats.respondieron / campaignStats.totalEnviados * 100) : 0;
+      const tasaConversion = campaignStats.totalEnviados > 0 ? (campaignStats.nuevasPagados / campaignStats.totalEnviados * 100) : 0;
+      const tasaUpsell = campaignStats.totalEnviados > 0 ? (campaignStats.nuevosUpsells / campaignStats.totalEnviados * 100) : 0;
+
+      // Acumular para promedios (solo campañas con datos)
+      if (campaignStats.totalEnviados > 0) {
+        campañasConDatos++;
+        sumaRoas += campanhaRoas;
+        sumaTasaRespuesta += tasaRespuesta;
+        sumaTasaConversion += tasaConversion;
+        sumaTasaUpsell += tasaUpsell;
+      }
+
+    } catch (campaignError) {
+      console.error(`Error processing campaign ${campaign.campaignId}:`, campaignError);
+    }
+  }
+
+  const result = {
+    totalCampaigns: allCampaigns.length,
+    campañasConDatos,
+    globalStats: {
       totalEnviados,
       totalRespondieron,
       totalNuevasPagados,
       totalNuevosUpsells,
       totalCambiosEstado
-    };
-
-    const globalEconomicAnalysis = {
+    },
+    globalEconomicAnalysis: {
       ingresoPorCompra: 12900,
       ingresoPorUpsell: 19000,
       costoPorMensaje: 0.0125,
@@ -832,9 +905,8 @@ router.get('/global-stats', async (req, res) => {
       costoTotal: totalCostoEnvio,
       rentabilidadNeta: (totalIngresoCompras + totalIngresoUpsells) - totalCostoEnvio,
       roas: totalCostoEnvio > 0 ? ((totalIngresoCompras + totalIngresoUpsells) / totalCostoEnvio) : 0
-    };
-
-    const globalSummary = {
+    },
+    globalSummary: {
       tasaRespuestaPromedio: campañasConDatos > 0 ? (sumaTasaRespuesta / campañasConDatos).toFixed(2) + '%' : '0.00%',
       tasaConversionPromedio: campañasConDatos > 0 ? (sumaTasaConversion / campañasConDatos).toFixed(2) + '%' : '0.00%',
       tasaUpsellPromedio: campañasConDatos > 0 ? (sumaTasaUpsell / campañasConDatos).toFixed(2) + '%' : '0.00%',
@@ -842,30 +914,60 @@ router.get('/global-stats', async (req, res) => {
       tasaRespuestaGlobal: totalEnviados > 0 ? ((totalRespondieron / totalEnviados) * 100).toFixed(2) + '%' : '0.00%',
       tasaConversionGlobal: totalEnviados > 0 ? ((totalNuevasPagados / totalEnviados) * 100).toFixed(2) + '%' : '0.00%',
       tasaUpsellGlobal: totalEnviados > 0 ? ((totalNuevosUpsells / totalEnviados) * 100).toFixed(2) + '%' : '0.00%'
-    };
+    },
+    dateRange: {
+      from: fechaMinima,
+      to: fechaMaxima
+    }
+  };
 
-    console.log('📊 Global stats calculated:', {
-      totalCampaigns: allCampaigns.length,
-      campañasConDatos,
-      globalStats,
-      globalEconomicAnalysis,
-      globalSummary
-    });
+  const endTime = Date.now();
+  console.log(`⚡ Global stats calculated in ${endTime - startTime}ms`);
+  
+  return result;
+};
 
-    res.json({
-      totalCampaigns: allCampaigns.length,
-      campañasConDatos,
-      globalStats,
-      globalEconomicAnalysis,
-      globalSummary,
-      dateRange: {
-        from: fechaMinima,
-        to: fechaMaxima
-      }
-    });
+// Obtener estadísticas globales de todas las campañas (con caché)
+router.get('/global-stats', async (req, res) => {
+  try {
+    console.log('📊 GET /global-stats - Fetching global statistics...');
+    
+    // Verificar caché
+    const now = Date.now();
+    const cacheValid = globalStatsCache.data && 
+                      globalStatsCache.lastUpdated && 
+                      (now - globalStatsCache.lastUpdated) < CACHE_DURATION;
+
+    if (cacheValid) {
+      console.log('⚡ Serving from cache (age:', Math.round((now - globalStatsCache.lastUpdated) / 1000), 'seconds)');
+      return res.json(globalStatsCache.data);
+    }
+
+    // Si ya se está actualizando, devolver datos anteriores si existen
+    if (globalStatsCache.isUpdating && globalStatsCache.data) {
+      console.log('🔄 Update in progress, serving stale cache');
+      return res.json(globalStatsCache.data);
+    }
+
+    // Marcar como actualizando
+    globalStatsCache.isUpdating = true;
+
+    try {
+      const result = await calculateGlobalStatsOptimized();
+      
+      // Actualizar caché
+      globalStatsCache.data = result;
+      globalStatsCache.lastUpdated = now;
+      
+      console.log('✅ Global stats calculated and cached');
+      res.json(result);
+    } finally {
+      globalStatsCache.isUpdating = false;
+    }
 
   } catch (error) {
     console.error('❌ Error fetching global stats:', error);
+    globalStatsCache.isUpdating = false;
     res.status(500).json({ 
       error: 'Internal server error',
       details: error.message 
@@ -898,4 +1000,5 @@ router.delete('/campaign/:campaignId', async (req, res) => {
   }
 });
 
+export default router;
 export default router;
