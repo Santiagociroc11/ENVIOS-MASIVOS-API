@@ -453,10 +453,21 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
             const initialState = userSnapshot.estadoInicial || 'desconocido';
             const currentState = currentUser.estado || 'desconocido';
             
+            console.log(`🔍 Usuario ${sentUser.whatsapp}:`);
+            console.log(`   Estado inicial (snapshot): "${initialState}"`);
+            console.log(`   Estado actual (BD): "${currentState}"`);
+            console.log(`   ¿Cambió?: ${initialState !== currentState}`);
+            console.log(`   flag_masivo actual: ${currentUser.flag_masivo}`);
+            
             if (initialState !== currentState) {
               shouldSetFlagMasivo = true;
               flagReason = `Estado cambió: ${initialState} → ${currentState}`;
+              console.log(`   ✅ DEBERÍA TENER flag_masivo: ${flagReason}`);
+            } else {
+              console.log(`   ❌ No cambió de estado`);
             }
+          } else {
+            console.log(`⚠️ Usuario ${sentUser.whatsapp} NO encontrado en snapshots`);
           }
         } else {
           // Alternative logic: TODOS los usuarios de campaña masiva deberían tener flag_masivo
@@ -496,7 +507,10 @@ router.post('/:campaignId/fix-plantilla-fields', async (req, res) => {
           }
         } else {
           flagMasivoNotNeeded++;
-          console.log(`📝 Usuario ${sentUser.whatsapp} NO necesita flag_masivo: ${flagReason || 'estado base sin interacción'}`);
+          console.log(`❌ Usuario ${sentUser.whatsapp} NO necesita flag_masivo`);
+          console.log(`   Razón: ${flagReason || 'No hay cambios detectados'}`);
+          console.log(`   Estado actual: ${currentUser.estado}`);
+          console.log(`   flag_masivo actual: ${currentUser.flag_masivo}`);
         }
         
         console.log(`📝 Actualizando usuario ${sentUser.whatsapp} en ${sentUser.database}:`, updateData);
