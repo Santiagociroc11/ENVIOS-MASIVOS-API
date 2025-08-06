@@ -196,31 +196,46 @@ router.post('/:campaignId/add-user', async (req, res) => {
     console.log('  - totalFailed:', campaign.totalFailed);
     console.log('  - sentUsers length:', campaign.sentUsers.length);
     
-    // Add user to sent list
-    const newUser = {
-      whatsapp,
-      database,
-      sentAt: new Date(),
-      status: status || 'sent',
-      messageId,
-      error
-    };
+    // Check if user already exists in campaign to prevent duplicates
+    const existingUser = campaign.sentUsers.find(user => user.whatsapp === whatsapp);
     
-    console.log('👤 Adding user to campaign:', newUser);
-    campaign.sentUsers.push(newUser);
-    
-    // Update counters
-    console.log('📊 Updating counters...');
-    if (status === 'sent' || !status) {
-      campaign.totalSuccess++;
-      console.log('✅ Incrementing totalSuccess to:', campaign.totalSuccess);
-    } else if (status === 'failed') {
-      campaign.totalFailed++;
-      console.log('❌ Incrementing totalFailed to:', campaign.totalFailed);
+    if (existingUser) {
+      console.log('⚠️ User already exists in campaign, updating status instead of duplicating:', whatsapp);
+      existingUser.status = status || 'sent';
+      existingUser.sentAt = new Date();
+      if (messageId) existingUser.messageId = messageId;
+      if (error) existingUser.error = error;
+    } else {
+      // Add user to sent list
+      const newUser = {
+        whatsapp,
+        database,
+        sentAt: new Date(),
+        status: status || 'sent',
+        messageId,
+        error
+      };
+      
+      console.log('👤 Adding user to campaign:', newUser);
+      campaign.sentUsers.push(newUser);
     }
     
-    campaign.totalSent = campaign.sentUsers.length;
-    console.log('📊 Updated totalSent to:', campaign.totalSent);
+    // Update counters (only increment for new users, not updates)
+    console.log('📊 Updating counters...');
+    if (!existingUser) {
+      if (status === 'sent' || !status) {
+        campaign.totalSuccess++;
+        console.log('✅ Incrementing totalSuccess to:', campaign.totalSuccess);
+      } else if (status === 'failed') {
+        campaign.totalFailed++;
+        console.log('❌ Incrementing totalFailed to:', campaign.totalFailed);
+      }
+      
+      campaign.totalSent = campaign.sentUsers.length;
+      console.log('📊 Updated totalSent to:', campaign.totalSent);
+    } else {
+      console.log('📊 No counter update - user was already in campaign');
+    }
     
     console.log('💾 Saving campaign to MongoDB...');
     await campaign.save();

@@ -14,11 +14,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onDatabaseChange
 }) => {
   const handleResetToDefault = () => {
-    onSelectDatabases(['bot-win', 'bot-win-2', 'bot-win-3', 'bot-win-4']);
+          onSelectDatabases(['bot-win-4']); // Solo BD4 existe
   };
 
   const handleSelectAll = () => {
-    onSelectDatabases(['bot-win', 'bot-win-2', 'bot-win-3', 'bot-win-4']);
+          onSelectDatabases(['bot-win-4']); // Solo BD4 existe
   };
 
   const handleDeselectAll = () => {

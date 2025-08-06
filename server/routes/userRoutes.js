@@ -7,7 +7,7 @@ const router = express.Router();
 // Get all unique estados from all selected databases
 router.get('/estados', async (req, res) => {
   try {
-    const databasesParam = req.query.databases || 'bot-win-2';
+    const databasesParam = req.query.databases || 'bot-win-4';
     const dbKeys = databasesParam.split(',').filter(key => key.trim());
     
     let allEstados = new Set();
@@ -56,7 +56,7 @@ router.get('/estados', async (req, res) => {
 // Get all unique payment methods from all selected databases
 router.get('/medios', async (req, res) => {
   try {
-    const databasesParam = req.query.databases || 'bot-win-2';
+    const databasesParam = req.query.databases || 'bot-win-4';
     const dbKeys = databasesParam.split(',').filter(key => key.trim());
     
     let allMedios = new Set();
@@ -114,7 +114,7 @@ router.get('/pending', async (req, res) => {
     const skip = loadAll ? 0 : (page - 1) * limit;
     
     // Get database keys from query parameter (can be multiple, comma-separated)
-    const databasesParam = req.query.databases || 'bot-win-2';
+    const databasesParam = req.query.databases || 'bot-win-4';
     const dbKeys = databasesParam.split(',').filter(key => key.trim());
     
     // Get order parameter (asc or desc)
@@ -152,7 +152,8 @@ router.get('/pending', async (req, res) => {
         sortObject[sortBy] = order;
         
         let query = UserModel.find({
-          whatsapp: { $exists: true, $ne: null, $ne: "" }
+          whatsapp: { $exists: true, $ne: null, $ne: "" },
+          bloqueado: { $ne: true } // <-- EXCLUIR USUARIOS BLOQUEADOS
         })
         .select('whatsapp estado medio medio_at ingreso enviado _id') // Include ingreso field
         .lean() // Use lean() for better performance
@@ -167,7 +168,8 @@ router.get('/pending', async (req, res) => {
         
         // Get total count for this database (for pagination info)
         const totalCount = await UserModel.countDocuments({
-          whatsapp: { $exists: true, $ne: null, $ne: "" }
+          whatsapp: { $exists: true, $ne: null, $ne: "" },
+          bloqueado: { $ne: true } // <-- EXCLUIR USUARIOS BLOQUEADOS
         });
         
         // Add database source to each user for tracking

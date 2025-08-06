@@ -12,7 +12,7 @@ import TemplateManagement from './components/TemplateManagement';
 import StepByStepSending from './components/StepByStepSending';
 import SettingsPanel from './components/SettingsPanel';
 import StatsPanel from './components/StatsPanel';
-import { fetchTemplates, fetchConfiguredTemplates, fetchFilteredUsers, sendTemplateMessage, markMessageSent, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign, createCampaignStats } from './api/services';
+import { fetchTemplates, fetchConfiguredTemplates, fetchFilteredUsers, sendTemplateMessage, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign, createCampaignStats } from './api/services';
 import { Template, ConfiguredTemplate, User } from './types';
 
 interface SendingResult {
@@ -447,7 +447,7 @@ function App() {
         if (result.success) {
           localSuccessCount++;
           setSuccessCount(localSuccessCount);
-                     await markMessageSent(user.whatsapp, [], selectedTemplate.templateName); // BD4 unificada - databases ya no necesario
+          // ✅ REMOVED: markMessageSent() is redundant - sendTemplateMessage() already marks user as sent
         } else {
           localErrorCount++;
           setErrorCount(localErrorCount);

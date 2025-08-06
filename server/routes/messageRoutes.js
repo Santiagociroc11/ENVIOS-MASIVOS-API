@@ -415,7 +415,7 @@ router.post('/send', async (req, res) => {
     const { phoneNumber, templateName, databases } = req.body;
     
     // Get database configurations
-    const dbKeys = databases || ['bot-win-2'];
+    const dbKeys = databases || ['bot-win-4'];
     const dbKeysArray = Array.isArray(dbKeys) ? dbKeys : [dbKeys];
     
     console.log('📱 Enviando mensaje a:', phoneNumber, 'con plantilla:', templateName, 'desde DBs:', dbKeysArray);
