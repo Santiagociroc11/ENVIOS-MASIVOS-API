@@ -598,7 +598,7 @@ function App() {
       </header>
 
       {/* Tab Navigation */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/20 p-2">
           <nav className="flex space-x-2">
             {tabs.map((tab) => {
@@ -625,7 +625,7 @@ function App() {
       </div>
 
       {/* Tab Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'send' && (
           <StepByStepSending
             selectedDatabases={selectedDatabases}
