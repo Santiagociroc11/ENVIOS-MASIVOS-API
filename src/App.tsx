@@ -1,19 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, RefreshCw, Database, MessageSquare, Users, History, Settings, BarChart3 } from 'lucide-react';
-import DatabaseSelector from './components/DatabaseSelector';
-import TemplateSelector from './components/TemplateSelector';
-import UserList from './components/UserList';
-import SendingPanel from './components/SendingPanel';
+import { Send, Database, MessageSquare, History, Settings, BarChart3 } from 'lucide-react';
 import SendingModal from './components/SendingModal';
 import CampaignHistory from './components/CampaignHistory';
-import AdvancedFilters from './components/AdvancedFilters';
-import TestMessagePanel from './components/TestMessagePanel';
 import TemplateManagement from './components/TemplateManagement';
 import StepByStepSending from './components/StepByStepSending';
 import SettingsPanel from './components/SettingsPanel';
 import StatsPanel from './components/StatsPanel';
-import { fetchTemplates, fetchConfiguredTemplates, fetchFilteredUsers, sendTemplateMessage, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign, createCampaignStats } from './api/services';
-import { Template, ConfiguredTemplate, User } from './types';
+import { fetchConfiguredTemplates, fetchFilteredUsers, sendTemplateMessage, fetchEstados, fetchMedios, createCampaign, addUserToCampaign, completeCampaign, createCampaignStats } from './api/services';
+import { ConfiguredTemplate, User } from './types';
 
 interface SendingResult {
   phoneNumber: string;
@@ -47,7 +41,7 @@ function App() {
   const [sortCriteria, setSortCriteria] = useState<'ingreso' | 'medio_at'>('medio_at');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isSending, setIsSending] = useState<boolean>(false);
-  const [sentCount, setSentCount] = useState<number>(0);
+
   const [availableEstados, setAvailableEstados] = useState<string[]>([]);
   const [availableMedios, setAvailableMedios] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -63,7 +57,7 @@ function App() {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   const [sendingSpeed, setSendingSpeed] = useState<number>(1000);
-  const [shouldCancel, setShouldCancel] = useState<boolean>(false);
+
   const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(null);
   
   const sendingControlRef = useRef<{ cancel: boolean; pause: boolean }>({ cancel: false, pause: false });
@@ -81,7 +75,7 @@ function App() {
         setTemplates(templatesData);
         
         if (selectedDatabases.length > 0) {
-          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder, sortCriteria);
+          const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder, sortCriteria, advancedFilters, searchTerm);
           setUsers(response.users);
           setFilteredUsers(response.users);
           setPagination(response.pagination);
@@ -105,93 +99,16 @@ function App() {
     };
 
     loadInitialData();
-  }, [selectedDatabases, currentPage, quantity, sendingOrder, sortCriteria]);
+  }, [selectedDatabases, currentPage, quantity, sendingOrder, sortCriteria, advancedFilters, searchTerm]);
 
-  // Filter users based on search term and filters
+  // Since filters are now applied on backend, just use users directly
   useEffect(() => {
-    let filtered = [...users];
-    
-    // Apply search term
-    if (searchTerm) {
-      filtered = filtered.filter(user => 
-        user.whatsapp.includes(searchTerm)
-      );
-    }
-    
-    // Apply advanced filters with AND/OR logic
-    if (advancedFilters.length > 0) {
-      filtered = filtered.filter(user => {
-        let result = true;
-        let currentGroup: FilterCondition[] = [];
-        
-        // Group filters by logical operator
-        for (let i = 0; i < advancedFilters.length; i++) {
-          const filter = advancedFilters[i];
-          
-          if (i === 0 || filter.logicalOperator === 'AND') {
-            // Process previous OR group if exists
-            if (currentGroup.length > 0) {
-              const orResult = currentGroup.some(f => evaluateFilter(user, f));
-              result = result && orResult;
-              currentGroup = [];
-            }
-            
-            if (filter.logicalOperator === 'AND' || i === 0) {
-              result = result && evaluateFilter(user, filter);
-            } else {
-              currentGroup.push(filter);
-            }
-          } else {
-            // OR operator
-            currentGroup.push(filter);
-          }
-        }
-        
-        // Process final OR group if exists
-        if (currentGroup.length > 0) {
-          const orResult = currentGroup.some(f => evaluateFilter(user, f));
-          result = result && orResult;
-        }
-        
-        return result;
-      });
-    }
-    
-    // Apply sorting based on selected criteria
-    filtered = filtered.sort((a, b) => {
-      const valueA = a[sortCriteria] || 0;
-      const valueB = b[sortCriteria] || 0;
-      
-      return sendingOrder === 'asc' 
-        ? valueA - valueB 
-        : valueB - valueA;
-    });
-    
-    setFilteredUsers(filtered);
-  }, [users, searchTerm, advancedFilters, sendingOrder, sortCriteria]);
+    // Backend now handles filtering, sorting, and search
+    // Just set filteredUsers to the users from backend
+    setFilteredUsers(users);
+  }, [users]);
 
-  // Helper function to evaluate individual filter
-  const evaluateFilter = (user: User, filter: FilterCondition): boolean => {
-    const fieldValue = user[filter.field];
-    const filterValue = filter.value;
-    
-    switch (filter.operator) {
-      case 'equals':
-        return fieldValue === filterValue;
-      case 'not_equals':
-        return fieldValue !== filterValue;
-      case 'greater_than':
-        return Number(fieldValue) > Number(filterValue);
-      case 'less_than':
-        return Number(fieldValue) < Number(filterValue);
-      case 'contains':
-        return String(fieldValue).toLowerCase().includes(String(filterValue).toLowerCase());
-      case 'not_contains':
-        return !String(fieldValue).toLowerCase().includes(String(filterValue).toLowerCase());
-      default:
-        return true;
-    }
-  };
+
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -200,7 +117,7 @@ function App() {
     
     try {
       if (selectedDatabases.length > 0) {
-        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder, sortCriteria);
+        const response = await fetchFilteredUsers(selectedDatabases, 1, quantity, shouldLoadAll, sendingOrder, sortCriteria, advancedFilters, searchTerm);
         setUsers(response.users);
         setFilteredUsers(response.users);
         setPagination(response.pagination);
@@ -273,7 +190,6 @@ function App() {
     setErrorCount(0);
     setIsPaused(false);
     setIsCompleted(false);
-    setShouldCancel(false);
     sendingControlRef.current = { cancel: false, pause: false };
   };
 
@@ -516,7 +432,6 @@ function App() {
   };
 
   const handleCancelSending = () => {
-    setShouldCancel(true);
     sendingControlRef.current.cancel = true;
     setIsSending(false);
     setIsCompleted(true);
@@ -536,7 +451,7 @@ function App() {
     
     setLoading(true);
     try {
-      const response = await fetchFilteredUsers(selectedDatabases, currentPage + 1, quantity, false, sendingOrder, sortCriteria);
+      const response = await fetchFilteredUsers(selectedDatabases, currentPage + 1, quantity, false, sendingOrder, sortCriteria, advancedFilters, searchTerm);
       setUsers(prev => [...prev, ...response.users]);
       setFilteredUsers(prev => [...prev, ...response.users]);
       setCurrentPage(prev => prev + 1);

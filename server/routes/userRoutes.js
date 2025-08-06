@@ -123,6 +123,13 @@ router.get('/pending', async (req, res) => {
     // Get sort criteria parameter (ingreso or medio_at)
     const sortBy = req.query.sortBy || 'medio_at';
     
+    // Parse advanced filters and search term
+    const advancedFilters = req.query.filters ? JSON.parse(req.query.filters) : [];
+    const searchTerm = req.query.search || '';
+    
+    console.log('🔍 Backend received filters:', advancedFilters);
+    console.log('🔍 Backend received search term:', searchTerm);
+    
     if (dbKeys.length === 0) {
       return res.status(400).json({ error: 'At least one database must be specified' });
     }
@@ -151,10 +158,65 @@ router.get('/pending', async (req, res) => {
         const sortObject = {};
         sortObject[sortBy] = order;
         
-        let query = UserModel.find({
+        // Build base query conditions
+        let queryConditions = {
           whatsapp: { $exists: true, $ne: null, $ne: "" },
           bloqueado: { $ne: true } // <-- EXCLUIR USUARIOS BLOQUEADOS
-        })
+        };
+        
+        // Apply search term filter
+        if (searchTerm) {
+          queryConditions.whatsapp = { 
+            ...queryConditions.whatsapp,
+            $regex: searchTerm, 
+            $options: 'i' 
+          };
+        }
+        
+        // Apply advanced filters
+        if (advancedFilters.length > 0) {
+          const filterConditions = [];
+          
+          for (const filter of advancedFilters) {
+            const condition = {};
+            const fieldValue = filter.value;
+            
+            switch (filter.operator) {
+              case 'equals':
+                condition[filter.field] = fieldValue;
+                break;
+              case 'not_equals':
+                condition[filter.field] = { $ne: fieldValue };
+                break;
+              case 'greater_than':
+                condition[filter.field] = { $gt: Number(fieldValue) };
+                break;
+              case 'less_than':
+                condition[filter.field] = { $lt: Number(fieldValue) };
+                break;
+              case 'contains':
+                condition[filter.field] = { $regex: fieldValue, $options: 'i' };
+                break;
+              case 'not_contains':
+                condition[filter.field] = { $not: { $regex: fieldValue, $options: 'i' } };
+                break;
+              default:
+                break;
+            }
+            
+            if (Object.keys(condition).length > 0) {
+              filterConditions.push(condition);
+            }
+          }
+          
+          if (filterConditions.length > 0) {
+            queryConditions.$and = filterConditions;
+          }
+        }
+        
+        console.log('🔍 Final query conditions:', JSON.stringify(queryConditions, null, 2));
+        
+        let query = UserModel.find(queryConditions)
         .select('whatsapp estado medio medio_at ingreso enviado _id') // Include ingreso field
         .lean() // Use lean() for better performance
         .sort(sortObject);
@@ -166,11 +228,8 @@ router.get('/pending', async (req, res) => {
         
         const users = await query.exec();
         
-        // Get total count for this database (for pagination info)
-        const totalCount = await UserModel.countDocuments({
-          whatsapp: { $exists: true, $ne: null, $ne: "" },
-          bloqueado: { $ne: true } // <-- EXCLUIR USUARIOS BLOQUEADOS
-        });
+        // Get total count for this database (for pagination info) with same filters
+        const totalCount = await UserModel.countDocuments(queryConditions);
         
         // Add database source to each user for tracking
         const usersWithSource = users.map(user => ({

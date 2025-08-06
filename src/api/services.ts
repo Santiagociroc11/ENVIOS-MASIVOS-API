@@ -34,7 +34,7 @@ export const fetchConfiguredTemplates = async (): Promise<ConfiguredTemplate[]> 
     return [];
   }
 };
-export const fetchFilteredUsers = async (databases?: string[], page: number = 1, limit: number = 50, loadAll: boolean = false, order: 'asc' | 'desc' = 'desc', sortBy: 'ingreso' | 'medio_at' = 'medio_at'): Promise<{ users: User[]; database: string; collection: string; count: number; pagination?: any }> => {
+export const fetchFilteredUsers = async (databases?: string[], page: number = 1, limit: number = 50, loadAll: boolean = false, order: 'asc' | 'desc' = 'desc', sortBy: 'ingreso' | 'medio_at' = 'medio_at', filters?: any[], searchTerm?: string): Promise<{ users: User[]; database: string; collection: string; count: number; pagination?: any }> => {
   try {
     const params = new URLSearchParams();
     if (databases && databases.length > 0) {
@@ -51,6 +51,15 @@ export const fetchFilteredUsers = async (databases?: string[], page: number = 1,
     // Add order and sort criteria parameters
     params.append('order', order);
     params.append('sortBy', sortBy);
+    
+    // Add advanced filters and search term
+    if (filters && filters.length > 0) {
+      params.append('filters', JSON.stringify(filters));
+    }
+    
+    if (searchTerm && searchTerm.trim()) {
+      params.append('search', searchTerm.trim());
+    }
     
     const url = `${API_BASE_URL}/users/pending?${params.toString()}`;
     const sortCriteriaLabel = sortBy === 'ingreso' ? 'fecha de registro' : 'fecha de pago';
