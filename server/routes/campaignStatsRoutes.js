@@ -1001,4 +1001,3 @@ router.delete('/campaign/:campaignId', async (req, res) => {
 });
 
 export default router;
-export default router;
