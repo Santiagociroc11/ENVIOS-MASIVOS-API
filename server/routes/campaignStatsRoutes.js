@@ -97,7 +97,7 @@ router.post('/create', async (req, res) => {
           
           const UserModel = await getDatabaseModel(dbConfig);
           userData = await UserModel.findOne({ whatsapp: user.whatsapp })
-            .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso enviado')
+            .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso enviado plantilla_at')
             .lean();
           
           if (userData) {
@@ -113,6 +113,7 @@ router.post('/create', async (req, res) => {
             medioInicial: userData.medio || '',
             pagadoAtInicial: userData.pagado_at || null,
             upsellAtInicial: userData.upsell_pagado_at || null,
+            plantillaAtInicial: userData.plantilla_at || null,
             ingresoInicial: userData.ingreso || null,
             enviado: true,
             sourceDatabase: userData._sourceDatabase
@@ -127,6 +128,7 @@ router.post('/create', async (req, res) => {
           medioInicial: '',
           pagadoAtInicial: null,
           upsellAtInicial: null,
+          plantillaAtInicial: null,
           ingresoInicial: null,
           enviado: true,
           sourceDatabase: 'unknown'
@@ -229,7 +231,7 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
           
           const UserModel = await getDatabaseModel(dbConfig);
           currentUserData = await UserModel.findOne({ whatsapp: userSnapshot.whatsapp })
-            .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso respondio_masivo')
+            .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso respondio_masivo plantilla_at')
             .lean();
           
           if (currentUserData) {
@@ -249,6 +251,8 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
             pagadoAtActual: currentUserData.pagado_at,
             upsellAtInicial: userSnapshot.upsellAtInicial,
             upsellAtActual: currentUserData.upsell_pagado_at,
+            plantillaAtInicial: userSnapshot.plantillaAtInicial,
+            plantillaAtActual: currentUserData.plantilla_at,
             respondioMasivo: currentUserData.respondio_masivo || false,
             sourceDatabase: currentUserData._sourceDatabase
           });
@@ -264,6 +268,8 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
             pagadoAtActual: null,
             upsellAtInicial: userSnapshot.upsellAtInicial,
             upsellAtActual: null,
+            plantillaAtInicial: userSnapshot.plantillaAtInicial,
+            plantillaAtActual: null,
             respondioMasivo: false,
             sourceDatabase: userSnapshot.sourceDatabase
           });
@@ -285,13 +291,19 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
         const hasResponseState = u.estadoActual === 'respondido' || u.estadoActual === 'respondido-masivo' || u.respondioMasivo;
         return hasStateChange && hasResponseState;
       }).length,
-      // Solo nuevos pagos después del envío de campaña
+      // Solo nuevos pagos que son producto de la plantilla
       nuevasPagados: currentStates.filter(u => {
         const wasNotPaid = u.estadoInicial !== 'pagado' && !u.pagadoAtInicial;
         const isNowPaid = u.estadoActual === 'pagado' || u.pagadoAtActual;
-        const paidAfterCampaign = u.pagadoAtActual && 
-          new Date(u.pagadoAtActual).getTime() > campaignDate.getTime();
-        return wasNotPaid && isNowPaid && paidAfterCampaign;
+        
+        // Verificar si la compra fue producto de la plantilla:
+        // plantilla_at debe existir y ser menor que pagado_at (timestamps unix)
+        const hasPlantillaTimestamp = u.plantillaAtActual || u.plantillaAtInicial;
+        const hasPagadoTimestamp = u.pagadoAtActual;
+        const plantillaBeforePago = hasPlantillaTimestamp && hasPagadoTimestamp && 
+          (u.plantillaAtActual || u.plantillaAtInicial) < u.pagadoAtActual;
+        
+        return wasNotPaid && isNowPaid && plantillaBeforePago;
       }).length,
       // Solo upsells después del envío de campaña
       nuevosUpsells: currentStates.filter(u => {
@@ -304,7 +316,20 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
       // Solo cambios de estado relevantes
       cambiosEstado: currentStates.filter(u => 
         u.estadoInicial !== u.estadoActual
-      ).length
+      ).length,
+      // Estadísticas específicas de efectividad de plantilla
+      usuariosConPlantilla: currentStates.filter(u => 
+        u.plantillaAtActual || u.plantillaAtInicial
+      ).length,
+      usuariosConCompras: currentStates.filter(u => 
+        u.pagadoAtActual
+      ).length,
+      comprasDirectasPlantilla: currentStates.filter(u => {
+        const hasPlantillaTimestamp = u.plantillaAtActual || u.plantillaAtInicial;
+        const hasPagadoTimestamp = u.pagadoAtActual;
+        return hasPlantillaTimestamp && hasPagadoTimestamp && 
+          (u.plantillaAtActual || u.plantillaAtInicial) < u.pagadoAtActual;
+      }).length
     };
 
     // Agrupar por estado inicial vs actual (solo cambios significativos)
@@ -342,7 +367,11 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
       summary: {
         tasaRespuesta: ((stats.respondieron / stats.totalEnviados) * 100).toFixed(2) + '%',
         tasaConversion: ((stats.nuevasPagados / stats.totalEnviados) * 100).toFixed(2) + '%',
-        tasaUpsell: ((stats.nuevosUpsells / stats.totalEnviados) * 100).toFixed(2) + '%'
+        tasaUpsell: ((stats.nuevosUpsells / stats.totalEnviados) * 100).toFixed(2) + '%',
+        efectividadPlantilla: stats.usuariosConPlantilla > 0 
+          ? ((stats.comprasDirectasPlantilla / stats.usuariosConPlantilla) * 100).toFixed(2) + '%'
+          : '0%',
+        comprasDirectasDelaPlantilla: stats.comprasDirectasPlantilla + ' de ' + stats.usuariosConCompras + ' compras totales'
       }
     });
 
