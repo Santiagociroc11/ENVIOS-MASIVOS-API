@@ -630,7 +630,7 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
         // Verificar flag_masivo
         const hasFlagMasivo = u.flagMasivoActual === true;
         
-        return wasNotPaid && isNowPaid && plantillaBeforePago && hasFlagMasivo;
+        return isNowPaid && plantillaBeforePago && hasFlagMasivo;
       }).length,
       // Solo upsells después del envío de campaña (con flag_masivo: true)
       nuevosUpsells: currentStates.filter(u => {
