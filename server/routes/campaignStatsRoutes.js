@@ -613,14 +613,11 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
       // Solo contar respuestas después del envío de la campaña (con flag_masivo: true)
       respondieron: currentStates.filter(u => {
         // Verificar si hay cambio de estado que indique interacción después del envío
-        const hasStateChange = u.estadoInicial !== u.estadoActual;
-        const hasResponseState = u.estadoActual === 'respondido' || u.estadoActual === 'respondido-masivo' || u.respondioMasivo;
         const hasFlagMasivo = u.flagMasivoActual === true;
-        return hasStateChange && hasResponseState && hasFlagMasivo;
+        return hasFlagMasivo;
       }).length,
       // Solo nuevos pagos que son producto de la plantilla (con flag_masivo: true)
       nuevasPagados: currentStates.filter(u => {
-        const wasNotPaid = u.estadoInicial !== 'pagado' && !u.pagadoAtInicial;
         const isNowPaid = u.estadoActual === 'pagado' || u.pagadoAtActual;
         
         // Verificar si la compra fue producto de la plantilla:
@@ -639,10 +636,10 @@ router.get('/campaign/:campaignId/stats', async (req, res) => {
       nuevosUpsells: currentStates.filter(u => {
         const hadNoUpsell = !u.upsellAtInicial;
         const hasUpsellNow = u.upsellAtActual;
-        const upsellAfterCampaign = u.upsellAtActual && 
-          new Date(u.upsellAtActual).getTime() > campaignDate.getTime();
+        const plantillaBeforeUpsell = u.plantillaAtActual && u.upsellAtActual && 
+          u.plantillaAtActual < u.upsellAtActual;
         const hasFlagMasivo = u.flagMasivoActual === true;
-        return hadNoUpsell && hasUpsellNow && upsellAfterCampaign && hasFlagMasivo;
+        return hadNoUpsell && hasUpsellNow && plantillaBeforeUpsell && hasFlagMasivo;
       }).length,
       // Solo cambios de estado relevantes
       cambiosEstado: currentStates.filter(u => 
@@ -914,28 +911,25 @@ const calculateGlobalStatsOptimized = async () => {
       const campaignStats = {
         totalEnviados: campaign.totalSent,
         respondieron: currentStates.filter(u => {
-          const hasStateChange = u.estadoInicial !== u.estadoActual;
-          const hasResponseState = u.estadoActual === 'respondido' || u.estadoActual === 'respondido-masivo' || u.respondioMasivo;
           const hasFlagMasivo = u.flagMasivoActual === true;
-          return hasStateChange && hasResponseState && hasFlagMasivo;
+          return hasFlagMasivo;
         }).length,
         nuevasPagados: currentStates.filter(u => {
-          const wasNotPaid = u.estadoInicial !== 'pagado' && !u.pagadoAtInicial;
           const isNowPaid = u.estadoActual === 'pagado' || u.pagadoAtActual;
           const hasPlantillaTimestamp = u.plantillaAtActual || u.plantillaAtInicial;
           const hasPagadoTimestamp = u.pagadoAtActual;
           const plantillaBeforePago = hasPlantillaTimestamp && hasPagadoTimestamp && 
             (u.plantillaAtActual || u.plantillaAtInicial) < u.pagadoAtActual;
           const hasFlagMasivo = u.flagMasivoActual === true;
-          return wasNotPaid && isNowPaid && plantillaBeforePago && hasFlagMasivo;
+          return isNowPaid && plantillaBeforePago && hasFlagMasivo;
         }).length,
         nuevosUpsells: currentStates.filter(u => {
           const hadNoUpsell = !u.upsellAtInicial;
           const hasUpsellNow = u.upsellAtActual;
-          const upsellAfterCampaign = u.upsellAtActual && 
-            new Date(u.upsellAtActual).getTime() > campaignDate.getTime();
+          const plantillaBeforeUpsell = u.plantillaAtActual && u.upsellAtActual && 
+            u.plantillaAtActual < u.upsellAtActual;
           const hasFlagMasivo = u.flagMasivoActual === true;
-          return hadNoUpsell && hasUpsellNow && upsellAfterCampaign && hasFlagMasivo;
+          return hadNoUpsell && hasUpsellNow && plantillaBeforeUpsell && hasFlagMasivo;
         }).length,
         cambiosEstado: currentStates.filter(u => 
           u.estadoInicial !== u.estadoActual
