@@ -22,14 +22,16 @@ const campaignStatsSchema = new mongoose.Schema({
   
   // Snapshot de usuarios al momento del envío
   usersSnapshot: [{
-    whatsapp: String,
-    estadoInicial: String,
-    medioInicial: String,
-    pagadoAtInicial: Number,
-    upsellAtInicial: Number,
-    ingresoInicial: Number,
-    enviado: Boolean,
-    sourceDatabase: String
+    whatsapp: { type: String, required: true },
+    estadoInicial: { type: String, default: 'desconocido' },
+    medioInicial: { type: String, default: '' },
+    pagadoAtInicial: { type: Number, default: null },
+    upsellAtInicial: { type: Number, default: null },
+    plantillaAtInicial: { type: Number, default: null },
+    flagMasivoInicial: { type: Boolean, default: false },
+    ingresoInicial: { type: Number, default: null },
+    enviado: { type: Boolean, default: true },
+    sourceDatabase: { type: String, required: true }
   }],
   
   // Configuración del envío

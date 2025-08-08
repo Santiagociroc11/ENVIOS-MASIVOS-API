@@ -93,7 +93,7 @@ router.get('/test', async (req, res) => {
 router.post('/create', async (req, res) => {
   try {
     console.log('📊 POST /create - Creating campaign stats...');
-    console.log('📦 Request body:', req.body);
+    console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
     
     const { 
       templateName, 
@@ -103,11 +103,26 @@ router.post('/create', async (req, res) => {
       notes = ''
     } = req.body;
     
-    console.log('📊 Parsed data:', { templateName, usersList: usersList?.length, databases, sendingOrder, notes });
+    console.log('📊 Parsed data:', { 
+      templateName, 
+      usersListLength: usersList?.length, 
+      usersListSample: usersList?.slice(0, 2), // Show first 2 users for debugging
+      databases, 
+      sendingOrder, 
+      notes 
+    });
 
     if (!templateName || !usersList || !Array.isArray(usersList)) {
+      console.error('❌ Invalid input data:', { templateName, usersList: !!usersList, isArray: Array.isArray(usersList) });
       return res.status(400).json({ 
         error: 'Template name and users list are required' 
+      });
+    }
+
+    if (usersList.length === 0) {
+      console.error('❌ Empty users list');
+      return res.status(400).json({ 
+        error: 'Users list cannot be empty' 
       });
     }
 
@@ -117,28 +132,53 @@ router.post('/create', async (req, res) => {
     // Crear snapshot de usuarios con su estado actual
     const usersSnapshot = [];
     
-    for (const user of usersList) {
+    console.log('🔍 Processing users to create snapshot...');
+    
+    for (let i = 0; i < usersList.length; i++) {
+      const user = usersList[i];
+      
       try {
+        // Validar que el usuario tenga la estructura correcta
+        if (!user || typeof user !== 'object') {
+          console.error(`❌ Invalid user object at index ${i}:`, user);
+          continue;
+        }
+
+        if (!user.whatsapp) {
+          console.error(`❌ User at index ${i} missing whatsapp field:`, user);
+          continue;
+        }
+
+        console.log(`🔍 Processing user ${i + 1}/${usersList.length}: ${user.whatsapp}`);
+        
         // Buscar el usuario en las bases de datos para obtener su estado actual
         let userData = null;
         
         for (const dbKey of databases) {
-          const dbConfig = getDatabase(dbKey);
-          if (!dbConfig) continue;
-          
-          const UserModel = await getDatabaseModel(dbConfig);
-          userData = await UserModel.findOne({ whatsapp: user.whatsapp })
-            .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso enviado plantilla_at flag_masivo')
-            .lean();
-          
-          if (userData) {
-            userData._sourceDatabase = dbKey;
-            break;
+          try {
+            const dbConfig = getDatabase(dbKey);
+            if (!dbConfig) {
+              console.warn(`⚠️ Database config not found for: ${dbKey}`);
+              continue;
+            }
+            
+            const UserModel = await getDatabaseModel(dbConfig);
+            userData = await UserModel.findOne({ whatsapp: user.whatsapp })
+              .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso enviado plantilla_at flag_masivo')
+              .lean();
+            
+            if (userData) {
+              userData._sourceDatabase = dbKey;
+              console.log(`✅ Found user ${user.whatsapp} in database ${dbKey}`);
+              break;
+            }
+          } catch (dbError) {
+            console.error(`❌ Database error for ${dbKey} when looking for user ${user.whatsapp}:`, dbError.message);
           }
         }
 
         if (userData) {
-          usersSnapshot.push({
+          const snapshot = {
             whatsapp: userData.whatsapp,
             estadoInicial: userData.estado || 'desconocido',
             medioInicial: userData.medio || '',
@@ -149,13 +189,33 @@ router.post('/create', async (req, res) => {
             ingresoInicial: userData.ingreso || null,
             enviado: true,
             sourceDatabase: userData._sourceDatabase
+          };
+          
+          usersSnapshot.push(snapshot);
+          console.log(`✅ Added snapshot for user ${user.whatsapp}`);
+        } else {
+          console.warn(`⚠️ User ${user.whatsapp} not found in any database`);
+          // Still add basic info even if not found
+          usersSnapshot.push({
+            whatsapp: user.whatsapp,
+            estadoInicial: 'no_encontrado',
+            medioInicial: '',
+            pagadoAtInicial: null,
+            upsellAtInicial: null,
+            plantillaAtInicial: null,
+            flagMasivoInicial: false,
+            ingresoInicial: null,
+            enviado: true,
+            sourceDatabase: 'unknown'
           });
         }
       } catch (userError) {
-        console.error(`Error processing user ${user.whatsapp}:`, userError);
+        console.error(`❌ Error processing user ${user?.whatsapp || 'unknown'} at index ${i}:`, userError);
+        console.error('Error stack:', userError.stack);
+        
         // Agregar usuario con datos mínimos si hay error
         usersSnapshot.push({
-          whatsapp: user.whatsapp,
+          whatsapp: user?.whatsapp || `unknown_${i}`,
           estadoInicial: 'error',
           medioInicial: '',
           pagadoAtInicial: null,
@@ -164,12 +224,23 @@ router.post('/create', async (req, res) => {
           flagMasivoInicial: false,
           ingresoInicial: null,
           enviado: true,
-          sourceDatabase: 'unknown'
+          sourceDatabase: 'error'
         });
       }
     }
 
+    console.log(`📊 Created snapshot with ${usersSnapshot.length} users`);
+
+    // Validar que tenemos al menos algunos usuarios
+    if (usersSnapshot.length === 0) {
+      console.error('❌ No valid users in snapshot');
+      return res.status(400).json({ 
+        error: 'No valid users could be processed' 
+      });
+    }
+
     // Crear el registro de campaña
+    console.log('💾 Creating campaign stats record...');
     const campaignStats = new CampaignStats({
       campaignId,
       templateName,
@@ -180,20 +251,48 @@ router.post('/create', async (req, res) => {
       notes
     });
 
+    console.log('💾 Saving campaign stats to database...');
     await campaignStats.save();
+    console.log('✅ Campaign stats saved successfully');
 
-    res.json({
+    const response = {
       success: true,
       campaignId,
       message: `Campaign tracked with ${usersSnapshot.length} users`,
       campaign: campaignStats
-    });
+    };
+
+    console.log('✅ Sending response:', JSON.stringify(response, null, 2));
+    res.json(response);
 
   } catch (error) {
-    console.error('Error creating campaign stats:', error);
+    console.error('❌ Error creating campaign stats:', error);
+    console.error('❌ Error name:', error.name);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    
+    // More specific error handling
+    if (error.name === 'ValidationError') {
+      console.error('🚨 MongoDB Validation Error:', error.errors);
+      return res.status(400).json({ 
+        error: 'Campaign validation failed',
+        details: error.message,
+        validationErrors: error.errors
+      });
+    }
+    
+    if (error.name === 'MongoError' || error.name === 'MongooseError') {
+      console.error('🚨 MongoDB Connection/Server Error:', error);
+      return res.status(503).json({ 
+        error: 'Database connection error',
+        details: 'Error de conexión con la base de datos'
+      });
+    }
+    
     res.status(500).json({ 
       error: 'Internal server error',
-      details: error.message 
+      details: error.message,
+      errorType: error.name
     });
   }
 });
