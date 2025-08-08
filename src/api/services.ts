@@ -452,6 +452,29 @@ export const deleteCampaignStats = async (campaignId: string): Promise<any> => {
   }
 };
 
+// Recuperar campaña perdida
+export const recoverLostCampaign = async (data: {
+  databases: string[];
+  templateName: string;
+  timeRangeHours?: number;
+  notes?: string;
+}): Promise<any> => {
+  try {
+    console.log('🔄 === FRONTEND: RECUPERANDO CAMPAÑA ===');
+    console.log('📦 Recovery data:', JSON.stringify(data, null, 2));
+    
+    const response = await axios.post(`${API_BASE_URL}/stats/recover-campaign`, data);
+    
+    console.log('✅ Campaign recovered successfully:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Error recovering campaign:', error);
+    console.error('❌ Error response:', error.response?.data);
+    console.error('❌ Error status:', error.response?.status);
+    throw error;
+  }
+};
+
 export const fixCampaignPlantillaFields = async (campaignId: string): Promise<any> => {
   try {
     console.log('🔧 === FRONTEND: ARREGLANDO CAMPOS PLANTILLA ===');

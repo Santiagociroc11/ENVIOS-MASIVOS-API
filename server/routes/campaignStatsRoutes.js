@@ -1074,6 +1074,142 @@ router.get('/global-stats', async (req, res) => {
   }
 });
 
+// Recuperar campaña perdida - buscar usuarios enviados recientemente
+router.post('/recover-campaign', async (req, res) => {
+  try {
+    console.log('🔄 POST /recover-campaign - Recovering lost campaign data...');
+    
+    const { 
+      databases, 
+      templateName, 
+      timeRangeHours = 24,
+      notes = 'Campaña recuperada manualmente'
+    } = req.body;
+    
+    if (!databases || !Array.isArray(databases) || databases.length === 0) {
+      return res.status(400).json({ 
+        error: 'Databases array is required' 
+      });
+    }
+
+    if (!templateName) {
+      return res.status(400).json({ 
+        error: 'Template name is required' 
+      });
+    }
+
+    console.log(`🔍 Searching for users sent in the last ${timeRangeHours} hours...`);
+    
+    // Calcular tiempo de búsqueda
+    const timeThreshold = Date.now() - (timeRangeHours * 60 * 60 * 1000);
+    const timeThresholdUnix = Math.floor(timeThreshold / 1000);
+    
+    console.log(`🕐 Looking for users with plantilla_at > ${timeThresholdUnix} (${new Date(timeThreshold).toISOString()})`);
+    
+    // Buscar usuarios enviados recientemente en todas las bases de datos
+    const allSentUsers = [];
+    
+    for (const dbKey of databases) {
+      try {
+        const dbConfig = getDatabase(dbKey);
+        if (!dbConfig) {
+          console.warn(`⚠️ Database config not found for: ${dbKey}`);
+          continue;
+        }
+        
+        const UserModel = await getDatabaseModel(dbConfig);
+        
+        // Buscar usuarios con enviado: true y plantilla_at reciente
+        const sentUsers = await UserModel.find({
+          enviado: true,
+          plantilla_at: { $gte: timeThresholdUnix }
+        })
+        .select('whatsapp estado medio pagado_at upsell_pagado_at ingreso enviado plantilla_at flag_masivo plantilla_enviada')
+        .lean();
+        
+        console.log(`📊 Found ${sentUsers.length} sent users in database ${dbKey}`);
+        
+        // Agregar info de la base de datos
+        sentUsers.forEach(user => {
+          user._sourceDatabase = dbKey;
+          allSentUsers.push(user);
+        });
+        
+      } catch (dbError) {
+        console.error(`❌ Error querying database ${dbKey}:`, dbError);
+      }
+    }
+    
+    if (allSentUsers.length === 0) {
+      return res.status(404).json({ 
+        error: 'No sent users found in the specified time range',
+        timeRange: `${timeRangeHours} hours`,
+        searchedFrom: new Date(timeThreshold).toISOString()
+      });
+    }
+    
+    console.log(`✅ Found total of ${allSentUsers.length} sent users across all databases`);
+    
+    // Crear snapshot para estadísticas
+    const usersSnapshot = allSentUsers.map(user => ({
+      whatsapp: user.whatsapp,
+      estadoInicial: user.estado || 'desconocido',
+      medioInicial: user.medio || '',
+      pagadoAtInicial: user.pagado_at || null,
+      upsellAtInicial: user.upsell_pagado_at || null,
+      plantillaAtInicial: user.plantilla_at || null,
+      flagMasivoInicial: user.flag_masivo || false,
+      ingresoInicial: user.ingreso || null,
+      enviado: true,
+      sourceDatabase: user._sourceDatabase
+    }));
+    
+    // Generar ID único para la campaña recuperada
+    const campaignId = `recovered_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Crear el registro de campaña recuperada
+    const campaignStats = new CampaignStats({
+      campaignId,
+      templateName,
+      totalSent: usersSnapshot.length,
+      usersSnapshot,
+      databases,
+      sendingOrder: 'desc', // Asumir descendente por defecto
+      notes: `${notes} - Recuperada el ${new Date().toISOString()}`
+    });
+    
+    await campaignStats.save();
+    
+    console.log('✅ Recovered campaign stats saved successfully');
+    
+    res.json({
+      success: true,
+      message: `Campaign recovered with ${allSentUsers.length} users`,
+      campaignId,
+      totalUsers: allSentUsers.length,
+      databases,
+      templateName,
+      timeRange: `${timeRangeHours} hours`,
+      searchedFrom: new Date(timeThreshold).toISOString(),
+      campaign: campaignStats,
+      userSample: allSentUsers.slice(0, 5).map(u => ({ 
+        whatsapp: u.whatsapp, 
+        estado: u.estado, 
+        plantilla_at: u.plantilla_at,
+        plantilla_enviada: u.plantilla_enviada,
+        database: u._sourceDatabase 
+      }))
+    });
+    
+  } catch (error) {
+    console.error('❌ Error recovering campaign:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
+  }
+});
+
 // Eliminar campaña
 router.delete('/campaign/:campaignId', async (req, res) => {
   try {
